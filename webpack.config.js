@@ -4,8 +4,6 @@ var _ = require('underscore');
 module.exports = {
   devtool: 'eval',
   entry: [
-    'webpack-dev-server/client?http://localhost:8080',
-    'webpack/hot/only-dev-server',
     path.resolve(__dirname, 'assets/javascripts/application.jsx')
   ],
   output: {
@@ -22,15 +20,6 @@ module.exports = {
   },
   module: {
     loaders: [
-      {
-        test: /\.jsx?$/,
-        loader: 'react-hot',
-        exclude: /node_modules/,
-        include: [
-          path.resolve(__dirname, 'assets/javascripts/components'),
-          path.resolve(__dirname, 'assets/javascripts/constants')
-        ]
-      },
       {
         test: /\.sass$/,
         loaders: ['style', 'css', 'sass'],
@@ -59,11 +48,9 @@ module.exports = {
       React: 'react',
       ReactDOM: 'react-dom',
       Redux: 'redux',
-      update: 'react-addons-update'
-    }),
-    new webpack.HotModuleReplacementPlugin()
-  ],
-  scripts: {
-    start: 'node webpack-dev-server.js'
-  }
+      update: 'react-addons-update',
+      socketIO: 'socket.io-client',
+      socketConstants: path.resolve(__dirname, 'shared/socketConstants.js')
+    })
+  ]
 };

@@ -1,9 +1,10 @@
 const express = require('express'),
   app = express(),
-  http = require('http').createServer(app),
+  http = require('http').Server(app),
   session = require('express-session'),
-  io = require('socket.io').listen(http),
-  path = require('path');
+  io = require('socket.io')(http),
+  path = require('path'),
+  socketConstants = require(path.resolve(__dirname, 'shared/socketConstants.js'));
 
   app.use(express.static(path.join(__dirname, 'public')));
 
@@ -13,4 +14,11 @@ const express = require('express'),
 
   http.listen(portNumber, () => {
       console.log("listening on " + portNumber + "!");
+  });
+
+  io.on('connection', (socket) => {
+    socket.on(socketConstants.C_INITIALIZE, (data) => {
+      console.log('yay!');
+      socket.emit(socketConstants.S_INITIALIZE, "blah");
+    })
   });

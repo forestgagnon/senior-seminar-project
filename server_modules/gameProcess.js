@@ -2,6 +2,7 @@ const path = require('path'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js'));
 
 let game;
+let updateNum;
 
 process.on('message', (message) => {
   console.log(message.message);
@@ -14,14 +15,14 @@ process.on('message', (message) => {
 
 function initGame(){
   clearInterval(sendUpdate);
-  let updateNum = 0;
+  updateNum = 0;
 
 
 
-  setInterval(sendUpdate.bind(null, updateNum), 500);
+  setInterval(sendUpdate, 500);
 }
 
-function sendUpdate(updateNum) {
+function sendUpdate() {
   const data = 'some game data ' + updateNum++;
   process.send({ message: procConstants.R_GAME_DATA, data: data });
 }

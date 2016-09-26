@@ -60,7 +60,7 @@ function sendUpdate() {
 
 function removeCircular(object) {
   let cache = [];
-  return JSON.stringify(object, function(key, value) {
+  return JSON.parse(JSON.stringify(object, function(key, value) {
       if (typeof value === 'object' && value !== null) {
           if (cache.indexOf(value) !== -1) {
               // Circular reference found, discard key
@@ -70,5 +70,5 @@ function removeCircular(object) {
           cache.push(value);
       }
       return value;
-  });
+  }));
 }

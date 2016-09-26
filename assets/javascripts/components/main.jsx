@@ -13,6 +13,10 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_INITIALIZE, (data) => {
       this.setState({ message: data });
     });
+    this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
+      console.log(data);
+      this.setState({ message: data });
+    });
     this.socket.emit(socketConstants.C_INITIALIZE);
   }
 

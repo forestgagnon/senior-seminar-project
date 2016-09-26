@@ -14,8 +14,7 @@ class Main extends React.Component {
       this.setState({ message: data });
     });
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
-      console.log(data);
-      this.setState({ message: data });
+      console.log(JSON.parse(data));
     });
     this.socket.emit(socketConstants.C_INITIALIZE);
   }

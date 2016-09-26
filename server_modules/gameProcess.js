@@ -1,8 +1,35 @@
 const path = require('path'),
-  procConstants = require(path.resolve(__dirname, 'procConstants.js'));
+  procConstants = require(path.resolve(__dirname, 'procConstants.js')),
+  m = require('matter-js'),
+  gameloop = require('node-gameloop');
+
+const engineParams = {
+  TIME_SCALE: 0.25,
+	FPS: 60,
+	GRAVITY: 0.001, //default is 0.00
+	WIDTH: 800,
+	HEIGHT: 800
+};
+
+let b_ground = m.Bodies.rectangle(400, 780, 810, 40, {
+	isStatic: true,
+  label: 'ground'
+});
+
+let b_boxA = m.Bodies.rectangle(400, 200, 80, 80, {
+	isStatic: false,
+  label: 'boxA'
+});
+m.Body.setMass(b_boxA, 20);
+
+const engine = m.Engine.create();
+engine.timing.delta = 1000/engineParams.FPS;
+engine.timing.timeScale = engineParams.TIME_SCALE; //default is 1
+engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
+
+m.World.add(engine.world, [b_boxA, b_ground]);
 
 let game;
-let updateNum;
 
 process.on('message', (message) => {
   console.log(message.message);
@@ -15,14 +42,33 @@ process.on('message', (message) => {
 
 function initGame(){
   clearInterval(sendUpdate);
-  updateNum = 0;
 
+  setInterval(sendUpdate, 250);
+  const gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
+}
 
-
-  setInterval(sendUpdate, 500);
+function gameLoop(delta) {
+  m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
+  m.Engine.update(engine, engine.timing.delta);
+  m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
 }
 
 function sendUpdate() {
-  const data = 'some game data ' + updateNum++;
+  const data = removeCircular(m.Composite.allBodies(engine.world));
   process.send({ message: procConstants.R_GAME_DATA, data: data });
+}
+
+function removeCircular(object) {
+  let cache = [];
+  return JSON.stringify(object, function(key, value) {
+      if (typeof value === 'object' && value !== null) {
+          if (cache.indexOf(value) !== -1) {
+              // Circular reference found, discard key
+              return;
+          }
+          // Store value in our collection
+          cache.push(value);
+      }
+      return value;
+  });
 }

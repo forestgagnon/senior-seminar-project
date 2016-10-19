@@ -19,7 +19,7 @@ gameProc.on('message', (procMsg) => {
   switch(procMsg.message) {
     case procConstants.R_GAME_DATA:
       io.sockets.emit(socketConstants.S_GAME_UPDATE, procMsg.data);
-      console.log('SENT UPDATE');
+      console.log('SENT UPDATE ' + procMsg.data.timestamp);
       break;
   }
 });

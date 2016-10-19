@@ -4,7 +4,7 @@ class Main extends React.Component {
     super();
     this.socket = null;
     this.state = {
-      message: "",
+      message: ""
     };
   }
 

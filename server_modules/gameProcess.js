@@ -1,15 +1,10 @@
 const path = require('path'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
+  physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
   m = require('matter-js'),
   gameloop = require('node-gameloop');
 
-const engineParams = {
-  TIME_SCALE: 0.25,
-	FPS: 60,
-	GRAVITY: 0.001, //default is 0.00
-	WIDTH: 800,
-	HEIGHT: 800
-};
+const engineParams = physicsConfig.engineParams;
 
 let b_ground = m.Bodies.rectangle(400, 780, 810, 40, {
 	isStatic: true,
@@ -54,8 +49,12 @@ function gameLoop(delta) {
 }
 
 function sendUpdate() {
-  const data = { bodies: removeCircular(m.Composite.allBodies(engine.world)), timestamp: engine.timing.timestamp };
-  process.send({ message: procConstants.R_GAME_DATA, data: data });
+  const data = {
+    engineParams: engineParams,
+    bodies: removeCircular(m.Composite.allBodies(engine.world)),
+    timestamp: engine.timing.timestamp
+  };
+  process.send({ message: procConstants.R_GAME_DATA, data: data })
 }
 
 function removeCircular(object) {

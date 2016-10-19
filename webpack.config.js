@@ -51,7 +51,9 @@ module.exports = {
       Redux: 'redux',
       update: 'react-addons-update',
       socketIO: 'socket.io-client',
-      socketConstants: path.resolve(__dirname, 'shared/socketConstants.js')
+      socketConstants: path.resolve(__dirname, 'shared/socketConstants.js'),
+      physicsConfig: path.resolve(__dirname, 'shared/physicsConfig.js'),
+      m: 'matter-js'
     })
   ]
 };

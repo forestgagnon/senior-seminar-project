@@ -50,7 +50,7 @@ function gameLoop(delta) {
 
 function sendUpdate() {
   const data = {
-    engineParams: engineParams,
+    //engineParams: engineParams,
     bodies: removeCircular(m.Composite.allBodies(engine.world)),
     timestamp: engine.timing.timestamp
   };

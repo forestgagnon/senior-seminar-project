@@ -1,3 +1,8 @@
+import socketConstants from 'shared/socketConstants';
+import physicsConfig from 'shared/physicsConfig';
+
+const engineParams = physicsConfig.engineParams;
+
 class Main extends React.Component {
 
   constructor(){
@@ -6,6 +11,11 @@ class Main extends React.Component {
     this.state = {
       message: ""
     };
+
+    this.engine = m.Engine.create();
+    this.engine.timing.delta = 1000/engineParams.FPS;
+    this.engine.timing.timeScale = engineParams.TIME_SCALE; //default is 1
+    this.engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
   }
 
   componentDidMount() {

@@ -12,7 +12,7 @@ module.exports = {
     publicPath: 'http://localhost:8080/public/',
   },
   resolve: {
-    root: [path.resolve(__dirname, 'assets/javascripts')],
+    root: [path.resolve(__dirname)],
     extensions: ['', '.js', '.jsx']
   },
   resolveLoader: {
@@ -51,8 +51,6 @@ module.exports = {
       Redux: 'redux',
       update: 'react-addons-update',
       socketIO: 'socket.io-client',
-      socketConstants: path.resolve(__dirname, 'shared/socketConstants.js'),
-      physicsConfig: path.resolve(__dirname, 'shared/physicsConfig.js'),
       m: 'matter-js'
     })
   ]

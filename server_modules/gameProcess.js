@@ -48,6 +48,12 @@ process.on('message', (message) => {
       allPlayersBySocketId[message.data.socketId] = newPlayer;
       playersToAdd.push(newPlayer);
       break;
+
+    case procConstants.P_REMOVE_PLAYER:
+      let player = allPlayersBySocketId[message.data.socketId];
+      playersToRemove.push(player);
+      delete allPlayersBySocketId[message.data.socketId];
+      break;
   }
 });
 
@@ -70,8 +76,11 @@ function gameLoop(delta) {
 
   while(playersToAdd.length > 0) {
     let newPlayer = playersToAdd.pop();
-    console.log(newPlayer);
     m.World.add(engine.world, newPlayer);
+  }
+  while(playersToRemove.length > 0) {
+    let deletePlayer = playersToRemove.pop();
+    m.World.remove(engine.world, deletePlayer);
   }
   // if (engine.timing.timestamp > 1000) {
   //   m.World.remove(engine.world, b_boxA);

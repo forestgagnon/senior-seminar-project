@@ -6,6 +6,8 @@ const path = require('path'),
 
 const engineParams = physicsConfig.engineParams;
 
+let gameLoopId;
+
 let b_ground = m.Bodies.rectangle(400, 780, 810, 40, {
 	isStatic: true,
   label: 'ground'
@@ -30,22 +32,30 @@ process.on('message', (message) => {
   console.log(message.message);
   switch(message.message) {
     case procConstants.P_START_GAME:
-      initGame();
+      initGameLoop();
       break;
   }
 });
 
-function initGame(){
+function initGameLoop(){
   clearInterval(sendUpdate);
 
-  setInterval(sendUpdate, 250);
-  const gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
+  setInterval(sendUpdate, 1000);
+  gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
+}
+
+function pauseGameLoop(){
+  clearInterval(sendUpdate);
+  gameloop.clearGameLoop(gameLoopId);
 }
 
 function gameLoop(delta) {
   m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
   m.Engine.update(engine, engine.timing.delta);
   m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
+  if (engine.timing.timestamp > 1000) {
+    m.World.remove(engine.world, b_boxA);
+  }
 }
 
 function sendUpdate() {

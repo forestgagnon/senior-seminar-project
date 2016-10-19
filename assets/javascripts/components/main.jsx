@@ -23,6 +23,8 @@ class Main extends React.Component {
 
     this.gameLoopIntervalId = null;
 
+    this.allBodies = {};
+
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
     this.gameLoop = this.gameLoop.bind(this);
@@ -70,8 +72,10 @@ class Main extends React.Component {
   updateGame(data) {
     const { bodies, timestamp } = data;
     let bodiesToAdd = [];
+    let newValidBodyIds = [];
     _.each(bodies, (unfilteredProps) => {
       const props = _.omit(unfilteredProps, ['parts']);
+      newValidBodyIds.push(props.id);
       const body = m.Composite.get(this.engine.world, props.id, props.type);
       if (!_.isNull(body)) {
         //Body already exists
@@ -79,10 +83,18 @@ class Main extends React.Component {
       }
       else {
         //Body needs to be created
-        bodiesToAdd.push(m.Body.create(props));
+        let newBody = m.Body.create(props);
+        bodiesToAdd.push(newBody);
+        this.allBodies[props.id] = newBody;
       }
     });
     m.World.add(this.engine.world, bodiesToAdd);
+
+    //Remove old bodies that don't exist anymore
+    _.each(_.keys(_.omit(this.allBodies, newValidBodyIds)), (idToDelete) => {
+      m.World.remove(this.engine.world, this.allBodies[idToDelete]);
+      delete this.allBodies[idToDelete];
+    });
 
 
     console.log(this.engine.timing.timestamp);

@@ -8,31 +8,36 @@ const express = require('express'),
   procConstants = require(path.resolve(__dirname, 'server_modules/procConstants.js')),
   childProcess = require('child_process');
 
-  app.use(express.static(path.join(__dirname, 'public')));
 
-  const gameProc = childProcess.fork(path.resolve(__dirname, 'server_modules/gameProcess.js'));
+//========== ROUTING ==========\\
+app.use(express.static(path.join(__dirname, 'public')));
 
-  gameProc.on('message', (procMsg) => {
-    switch(procMsg.message) {
-      case procConstants.R_GAME_DATA:
-        io.sockets.emit(socketConstants.S_GAME_UPDATE, procMsg.data);
-        console.log('SENT UPDATE');
-        break;
-    }
-  });
+//========== GAME SUBPROCESS ==========\\
+const gameProc = childProcess.fork(path.resolve(__dirname, 'server_modules/gameProcess.js'));
 
-  gameProc.send({ message: procConstants.P_START_GAME });
+gameProc.on('message', (procMsg) => {
+  switch(procMsg.message) {
+    case procConstants.R_GAME_DATA:
+      io.sockets.emit(socketConstants.S_GAME_UPDATE, procMsg.data);
+      console.log('SENT UPDATE');
+      break;
+  }
+});
 
-  //===============PORT=================
-  const portNumber = process.env.PORT || 3000; //process.env.PORT is for Heroku's dynamic port allocation
+gameProc.send({ message: procConstants.P_START_GAME });
 
-  http.listen(portNumber, () => {
-      console.log("listening on " + portNumber + "!");
-  });
+//========== PORT ==========\\
+const portNumber = process.env.PORT || 3000; //process.env.PORT is for Heroku's dynamic port allocation
 
-  io.on('connection', (socket) => {
-    socket.on(socketConstants.C_INITIALIZE, (data) => {
-      console.log('yay!');
-      socket.emit(socketConstants.S_INITIALIZE, "blah");
-    })
-  });
+http.listen(portNumber, () => {
+    console.log("listening on " + portNumber + "!");
+});
+
+
+//========== SOCKET MESSAGES ==========\\
+io.on('connection', (socket) => {
+  socket.on(socketConstants.C_INITIALIZE, (data) => {
+    console.log('Client socket initialized');
+    socket.emit(socketConstants.S_INITIALIZE, "blah");
+  })
+});

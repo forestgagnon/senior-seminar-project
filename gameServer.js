@@ -36,8 +36,13 @@ http.listen(portNumber, () => {
 
 //========== SOCKET MESSAGES ==========\\
 io.on('connection', (socket) => {
+  gameProc.send({ message: procConstants.P_ADD_PLAYER, data: { socketId: socket.id } });
   socket.on(socketConstants.C_INITIALIZE, (data) => {
     console.log('Client socket initialized');
     socket.emit(socketConstants.S_INITIALIZE, "blah");
   })
+});
+
+io.on('disconnection', (socket) => {
+  gameProc.send({ message: procConstants.P_REMOVE_PLAYER, data: { socketId: socket.id } });
 });

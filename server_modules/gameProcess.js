@@ -2,13 +2,20 @@ const path = require('path'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
   physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
   m = require('matter-js'),
-  gameloop = require('node-gameloop');
+  gameloop = require('node-gameloop'),
+  modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'));
 
 const engineParams = physicsConfig.engineParams;
 
+//========== GLOBALS ==========\\
 let gameLoopId;
+let allPlayersBySocketId = {};
+let game;
+let playersToAdd = [];
+let playersToRemove = [];
 
-let b_ground = m.Bodies.rectangle(400, 780, 810, 40, {
+
+let b_ground = m.Bodies.rectangle(engineParams.WIDTH / 2, engineParams.HEIGHT - 20, engineParams.WIDTH + 10, 40, {
 	isStatic: true,
   label: 'ground'
 });
@@ -26,13 +33,20 @@ engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
 
 m.World.add(engine.world, [b_boxA, b_ground]);
 
-let game;
-
 process.on('message', (message) => {
   console.log(message.message);
   switch(message.message) {
     case procConstants.P_START_GAME:
       initGameLoop();
+      break;
+
+    case procConstants.P_ADD_PLAYER:
+      let newPlayer = modelGenerator.createPlayerModel(message.data.socketId);
+
+      //Position the player
+      m.Body.setPosition(newPlayer, { x: 50, y: engineParams.HEIGHT - 100 });
+      allPlayersBySocketId[message.data.socketId] = newPlayer;
+      playersToAdd.push(newPlayer);
       break;
   }
 });
@@ -53,9 +67,15 @@ function gameLoop(delta) {
   m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
   m.Engine.update(engine, engine.timing.delta);
   m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
-  if (engine.timing.timestamp > 1000) {
-    m.World.remove(engine.world, b_boxA);
+
+  while(playersToAdd.length > 0) {
+    let newPlayer = playersToAdd.pop();
+    console.log(newPlayer);
+    m.World.add(engine.world, newPlayer);
   }
+  // if (engine.timing.timestamp > 1000) {
+  //   m.World.remove(engine.world, b_boxA);
+  // }
 }
 
 function sendUpdate() {

@@ -14,7 +14,7 @@ class Main extends React.Component {
       message: ""
     };
 
-    this.engine = m.Engine.create();
+    this.engine = m.Engine.create({ enableSleeping: true });
     this.engine.timing.delta = 1000/engineParams.FPS;
     this.engine.timing.timeScale = engineParams.TIME_SCALE; //default is 1
     this.engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
@@ -52,7 +52,7 @@ class Main extends React.Component {
       options: {
         width: engineParams.WIDTH,
         height: engineParams.HEIGHT,
-        wireframes: false,
+        wireframes: false
       },
     });
 

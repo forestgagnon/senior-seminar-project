@@ -1,4 +1,5 @@
 const path = require('path'),
+  _ = require('underscore'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
   physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
   m = require('matter-js'),
@@ -14,24 +15,19 @@ let game;
 let playersToAdd = [];
 let playersToRemove = [];
 
-
-let b_ground = m.Bodies.rectangle(engineParams.WIDTH / 2, engineParams.HEIGHT - 20, engineParams.WIDTH + 10, 40, {
-	isStatic: true,
-  label: 'ground'
-});
-
 let b_boxA = m.Bodies.rectangle(400, 200, 80, 80, {
 	isStatic: false,
   label: 'boxA'
 });
 m.Body.setMass(b_boxA, 20);
 
-const engine = m.Engine.create();
+const engine = m.Engine.create({ enableSleeping: true });
 engine.timing.delta = 1000/engineParams.FPS;
 engine.timing.timeScale = engineParams.TIME_SCALE; //default is 1
 engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
 
-m.World.add(engine.world, [b_boxA, b_ground]);
+let boundaries = modelGenerator.createBoundaries(engineParams.WIDTH, engineParams.HEIGHT);
+m.World.add(engine.world, _.values(boundaries));
 
 process.on('message', (message) => {
   console.log(message.message);
@@ -44,7 +40,7 @@ process.on('message', (message) => {
       let newPlayer = modelGenerator.createPlayerModel(message.data.socketId);
 
       //Position the player
-      m.Body.setPosition(newPlayer, { x: 50, y: engineParams.HEIGHT - 100 });
+      m.Body.setPosition(newPlayer, { x: 50, y: engineParams.HEIGHT / 2 });
       allPlayersBySocketId[message.data.socketId] = newPlayer;
       playersToAdd.push(newPlayer);
       break;
@@ -60,7 +56,7 @@ process.on('message', (message) => {
 function initGameLoop(){
   clearInterval(sendUpdate);
 
-  setInterval(sendUpdate, 1000);
+  setInterval(sendUpdate, 500);
   gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
 }
 

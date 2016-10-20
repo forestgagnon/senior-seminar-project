@@ -1,5 +1,5 @@
 const engineParams = {
-  TIME_SCALE: 0.25,
+  TIME_SCALE: 0.75,
 	FPS: 60,
 	GRAVITY: 0.001, //default is 0.00
 	WIDTH: 800,

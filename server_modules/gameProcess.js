@@ -53,14 +53,14 @@ process.on('message', (message) => {
   }
 });
 
-function initGameLoop(){
+function initGameLoop() {
   clearInterval(sendUpdate);
 
   setInterval(sendUpdate, 500);
   gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
 }
 
-function pauseGameLoop(){
+function pauseGameLoop() {
   clearInterval(sendUpdate);
   gameloop.clearGameLoop(gameLoopId);
 }

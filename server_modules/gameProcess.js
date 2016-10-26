@@ -56,7 +56,7 @@ process.on('message', (message) => {
 function initGameLoop() {
   clearInterval(sendUpdate);
 
-  setInterval(sendUpdate, 500);
+  setInterval(sendUpdate, 1000 / 30);
   gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
 }
 

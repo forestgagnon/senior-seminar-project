@@ -1,6 +1,7 @@
 import socketConstants from 'shared/socketConstants';
 import physicsConfig from 'shared/physicsConfig';
 import gameloop from 'node-gameloop';
+import FastPriorityQueue from 'fastpriorityqueue';
 
 const engineParams = physicsConfig.engineParams;
 
@@ -23,6 +24,8 @@ class Main extends React.Component {
 
     this.gameLoopIntervalId = null;
 
+    this.updateQueue = new FastPriorityQueue(timestampComparator);
+
     this.allBodies = {};
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
@@ -38,10 +41,10 @@ class Main extends React.Component {
       this.setState({ message: data }, () => this.startGameLoop());
     });
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
-      this.pauseGameLoop();
-      console.log(data.bodies);
-      this.updateGame(data);
-      this.startGameLoop();
+      this.updateQueue.add({
+        timestamp: data.timestamp,
+        bodies: data.bodies
+      });
     });
     this.socket.emit(socketConstants.C_INITIALIZE);
 
@@ -58,6 +61,8 @@ class Main extends React.Component {
 
     m.Render.run(this.renderer);
 
+    setInterval(this.updateGame, 1000/80);
+
   }
 
   render() {
@@ -70,7 +75,23 @@ class Main extends React.Component {
   }
 
   updateGame(data) {
-    const { bodies, timestamp } = data;
+    if(this.updateQueue.isEmpty()) {
+      this.updateQueue.trim();
+      return;
+    }
+    else if(this.updateQueue.size > 50) {
+      this.updateQueue = new FastPriorityQueue(timestampComparator)
+      return;
+    }
+    const { bodies, timestamp } = this.updateQueue.poll();
+
+    // console.log(this.engine.timing.timestamp);
+    // console.log(timestamp);
+    //Update timestamp
+    if (Math.abs(timestamp - this.engine.timing.timestamp) > 0) {
+      this.engine.timing.timestamp = timestamp;
+    }
+
     let bodiesToAdd = [];
     let newValidBodyIds = [];
     _.each(bodies, (unfilteredProps) => {
@@ -96,13 +117,6 @@ class Main extends React.Component {
       delete this.allBodies[idToDelete];
     });
 
-
-    console.log(this.engine.timing.timestamp);
-    console.log(timestamp);
-    //Update timestamp
-    if (Math.abs(timestamp - this.engine.timing.timestamp) > 100) {
-      this.engine.timing.timestamp = timestamp;
-    }
   }
 
   gameLoop(delta) {
@@ -120,3 +134,7 @@ class Main extends React.Component {
   }
 }
 export default Main;
+
+function timestampComparator(a,b) {
+  return a.timestamp < b.timestamp;
+}

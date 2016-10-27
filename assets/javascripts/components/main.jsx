@@ -3,7 +3,7 @@ import physicsConfig from 'shared/physicsConfig';
 import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 
-const engineParams = physicsConfig.engineParams;
+const ENGINE_PARAMS = physicsConfig.engineParams;
 
 class Main extends React.Component {
 
@@ -16,9 +16,9 @@ class Main extends React.Component {
     };
 
     this.engine = m.Engine.create({ enableSleeping: true });
-    this.engine.timing.delta = 1000/engineParams.FPS;
-    this.engine.timing.timeScale = engineParams.TIME_SCALE; //default is 1
-    this.engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
+    this.engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
+    this.engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
+    this.engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
 
     this.renderer = null;
 
@@ -53,8 +53,8 @@ class Main extends React.Component {
       engine: this.engine,
       element: this.gameCanvasRef,
       options: {
-        width: engineParams.WIDTH,
-        height: engineParams.HEIGHT,
+        width: ENGINE_PARAMS.WIDTH,
+        height: ENGINE_PARAMS.HEIGHT,
         wireframes: false
       },
     });
@@ -126,7 +126,7 @@ class Main extends React.Component {
   }
 
   startGameLoop() {
-    this.gameLoopIntervalId = Gameloop.setGameLoop(this.gameLoop, 1000 / engineParams.FPS);
+    this.gameLoopIntervalId = Gameloop.setGameLoop(this.gameLoop, 1000 / ENGINE_PARAMS.FPS);
   }
 
   pauseGameLoop() {

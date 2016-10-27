@@ -1,6 +1,6 @@
 import socketConstants from 'shared/socketConstants';
 import physicsConfig from 'shared/physicsConfig';
-import gameloop from 'node-gameloop';
+import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 
 const engineParams = physicsConfig.engineParams;
@@ -126,11 +126,11 @@ class Main extends React.Component {
   }
 
   startGameLoop() {
-    this.gameLoopIntervalId = gameloop.setGameLoop(this.gameLoop, 1000 / engineParams.FPS);
+    this.gameLoopIntervalId = Gameloop.setGameLoop(this.gameLoop, 1000 / engineParams.FPS);
   }
 
   pauseGameLoop() {
-    gameloop.clearGameLoop(this.gameLoopIntervalId);
+    Gameloop.clearGameLoop(this.gameLoopIntervalId);
   }
 }
 export default Main;

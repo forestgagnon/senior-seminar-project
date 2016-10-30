@@ -6,7 +6,8 @@ const path = require('path'),
   gameloop = require('node-gameloop'),
   modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'));
 
-const engineParams = physicsConfig.engineParams;
+const ENGINE_PARAMS = physicsConfig.engineParams;
+const MOVEMENT_FORCES = physicsConfig.movementForces;
 
 //========== GLOBALS ==========\\
 let gameLoopId;
@@ -22,15 +23,16 @@ let b_boxA = m.Bodies.rectangle(400, 200, 80, 80, {
 m.Body.setMass(b_boxA, 20);
 
 const engine = m.Engine.create({ enableSleeping: true });
-engine.timing.delta = 1000/engineParams.FPS;
-engine.timing.timeScale = engineParams.TIME_SCALE; //default is 1
-engine.world.gravity.scale = engineParams.GRAVITY; //default is 0.001
+engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
+engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
+engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
 
-let boundaries = modelGenerator.createBoundaries(engineParams.WIDTH, engineParams.HEIGHT);
+let boundaries = modelGenerator.createBoundaries(ENGINE_PARAMS.WIDTH, ENGINE_PARAMS.HEIGHT);
 m.World.add(engine.world, _.values(boundaries));
 
 process.on('message', (message) => {
   console.log(message.message);
+  let player;
   switch(message.message) {
     case procConstants.P_START_GAME:
       initGameLoop();
@@ -39,19 +41,29 @@ process.on('message', (message) => {
     case procConstants.P_ADD_PLAYER:
       let newPlayer = {
         id: message.data.socketId,
-        body: modelGenerator.createPlayerModel(message.data.socketId)
+        body: modelGenerator.createPlayerModel(message.data.socketId),
+        movementDirections: []
       };
 
       //Position the player
-      m.Body.setPosition(newPlayer.body, { x: 50, y: engineParams.HEIGHT / 2 });
+      m.Body.setPosition(newPlayer.body, { x: 50, y: ENGINE_PARAMS.HEIGHT / 2 });
       allPlayersBySocketId[newPlayer.id] = newPlayer;
       playersToAdd.push(newPlayer);
       break;
 
     case procConstants.P_REMOVE_PLAYER:
-      let player = allPlayersBySocketId[message.data.socketId];
-      playersToRemove.push(player);
-      delete allPlayersBySocketId[message.data.socketId];
+      player = allPlayersBySocketId[message.data.socketId];
+      if (player) {
+        playersToRemove.push(player);
+        delete allPlayersBySocketId[message.data.socketId];
+      }
+      break;
+
+    case procConstants.P_PLAYER_MOVE:
+      player = allPlayersBySocketId[message.data.socketId];
+      if (player) {
+        player.movementDirections = message.data.directions;
+      }
       break;
   }
 });
@@ -60,7 +72,7 @@ function initGameLoop() {
   clearInterval(sendUpdate);
 
   setInterval(sendUpdate, 1000 / 30);
-  gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / engineParams.FPS);
+  gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / ENGINE_PARAMS.FPS);
 }
 
 function pauseGameLoop() {
@@ -70,6 +82,15 @@ function pauseGameLoop() {
 
 function gameLoop(delta) {
   m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
+
+  //Resolve player movement requests
+  _.each(_.values(allPlayersBySocketId), (player) => {
+    player.movementDirections.forEach((direction) => {
+      m.Body.applyForce(player.body, player.body.position, MOVEMENT_FORCES[direction]);
+    });
+    player.movementDirections = [];
+  });
+
   m.Engine.update(engine, engine.timing.delta);
   m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
 
@@ -91,7 +112,7 @@ function sendUpdate() {
   const playerBodies = _.filter(bodies, (body) => body.label === 'player');
   const boundaryBodies = _.filter(bodies, (body) => body.label === 'boundary');
   const data = {
-    //engineParams: engineParams,
+    //ENGINE_PARAMS: ENGINE_PARAMS,
     playerBodies: playerBodies,
     boundaryBodies: boundaryBodies,
     timestamp: engine.timing.timestamp

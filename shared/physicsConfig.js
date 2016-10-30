@@ -6,6 +6,14 @@ const engineParams = {
 	HEIGHT: 800
 };
 
+const movementForces = {
+  up: { x: 0, y: -0.2 },
+  down: { x: 0, y: 0.2 },
+  left: { x: -0.2, y: 0 },
+  right: { x: 0.2, y: 0 },
+};
+
 module.exports = {
-  engineParams: engineParams
+  engineParams: engineParams,
+  movementForces: movementForces
 };

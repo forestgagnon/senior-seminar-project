@@ -48,6 +48,16 @@ io.on('connection', (socket) => {
     socket.emit(socketConstants.S_INITIALIZE, "blah");
   });
 
+  socket.on(socketConstants.C_MOVE, (directions) => {
+    gameProc.send({
+      message: procConstants.P_PLAYER_MOVE,
+      data: {
+        socketId: socket.id,
+        directions: directions
+      }
+    });
+  });
+
   socket.on('disconnect', () => {
     gameProc.send({ message: procConstants.P_REMOVE_PLAYER, data: { socketId: socket.id } });
   });

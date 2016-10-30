@@ -4,6 +4,13 @@ import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
+const MOVEMENT_FORCES = physicsConfig.movementForces;
+const KEY_CODES = {
+  'W': 'W'.charCodeAt(0),
+  'A': 'A'.charCodeAt(0),
+  'S': 'S'.charCodeAt(0),
+  'D': 'D'.charCodeAt(0),
+};
 
 class Main extends React.Component {
 
@@ -28,6 +35,8 @@ class Main extends React.Component {
 
     this.playerId = null;
     this.allBodies = {};
+    this.playerBody = null;
+    this.keyMap = {};
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -68,6 +77,14 @@ class Main extends React.Component {
 
     m.Render.run(this.renderer);
 
+    window.onkeydown = function(e){
+      this.keyMap[e.which] = true;
+    }.bind(this);
+
+    window.onkeyup = function(e){
+       this.keyMap[e.which] = false;
+    }.bind(this);
+
     setInterval(this.updateGame, 1000/80);
 
   }
@@ -91,7 +108,6 @@ class Main extends React.Component {
       return;
     }
     const { playerBodies, boundaryBodies, timestamp } = this.updateQueue.poll();
-
     // console.log(this.engine.timing.timestamp);
     // console.log(timestamp);
     //Update timestamp
@@ -119,8 +135,13 @@ class Main extends React.Component {
         else {
           //Body needs to be created
           let newBody = m.Body.create(props);
+          renderPropFunc(props, newBody);
+          m.Body.set(newBody, props);
           bodiesToAdd.push(newBody);
           this.allBodies[props.id] = newBody;
+          if (newBody.playerId === this.playerId) {
+            this.playerBody = newBody;
+          }
         }
       });
     });
@@ -136,6 +157,31 @@ class Main extends React.Component {
 
   gameLoop(delta) {
     m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
+
+    //Handle movement
+    let directions = [];
+    if (!_.isNull(this.playerBody)) {
+      if (this.keyMap[KEY_CODES['W']]) {
+        m.Body.applyForce(this.playerBody, this.playerBody.position, MOVEMENT_FORCES.up);
+        directions.push('up');
+      } else if (this.keyMap[KEY_CODES['S']]) {
+        m.Body.applyForce(this.playerBody, this.playerBody.position, MOVEMENT_FORCES.down);
+        directions.push('down');
+      }
+
+      if (this.keyMap[KEY_CODES['A']]) {
+        m.Body.applyForce(this.playerBody, this.playerBody.position, MOVEMENT_FORCES.left);
+        directions.push('left');
+      } else if (this.keyMap[KEY_CODES['D']]) {
+        m.Body.applyForce(this.playerBody, this.playerBody.position, MOVEMENT_FORCES.right);
+        directions.push('right');
+      }
+    }
+
+    if(directions.length > 0) {
+      this.socket.emit(socketConstants.C_MOVE, directions);
+    }
+
     m.Engine.update(this.engine, this.engine.timing.delta);
     m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
   }

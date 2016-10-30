@@ -152,6 +152,7 @@ class Main extends React.Component {
     if (body.playerId === this.playerId) {
       props.render.fillStyle = 'green';
       props.render.strokeStyle = 'green';
+      props.render.strokeWidth = '2px';
     } else {
       props.render.fillStyle = 'black';
       props.render.strokeStyle = 'black';

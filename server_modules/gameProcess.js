@@ -37,11 +37,14 @@ process.on('message', (message) => {
       break;
 
     case procConstants.P_ADD_PLAYER:
-      let newPlayer = modelGenerator.createPlayerModel(message.data.socketId);
+      let newPlayer = {
+        id: message.data.socketId,
+        body: modelGenerator.createPlayerModel(message.data.socketId)
+      };
 
       //Position the player
-      m.Body.setPosition(newPlayer, { x: 50, y: engineParams.HEIGHT / 2 });
-      allPlayersBySocketId[message.data.socketId] = newPlayer;
+      m.Body.setPosition(newPlayer.body, { x: 50, y: engineParams.HEIGHT / 2 });
+      allPlayersBySocketId[newPlayer.id] = newPlayer;
       playersToAdd.push(newPlayer);
       break;
 
@@ -72,11 +75,11 @@ function gameLoop(delta) {
 
   while(playersToAdd.length > 0) {
     let newPlayer = playersToAdd.pop();
-    m.World.add(engine.world, newPlayer);
+    m.World.add(engine.world, newPlayer.body);
   }
   while(playersToRemove.length > 0) {
     let deletePlayer = playersToRemove.pop();
-    m.World.remove(engine.world, deletePlayer);
+    m.World.remove(engine.world, deletePlayer.body);
   }
   // if (engine.timing.timestamp > 1000) {
   //   m.World.remove(engine.world, b_boxA);
@@ -84,9 +87,13 @@ function gameLoop(delta) {
 }
 
 function sendUpdate() {
+  const bodies = removeCircular(m.Composite.allBodies(engine.world));
+  const playerBodies = _.filter(bodies, (body) => body.label === 'player');
+  const boundaryBodies = _.filter(bodies, (body) => body.label === 'boundary');
   const data = {
     //engineParams: engineParams,
-    bodies: removeCircular(m.Composite.allBodies(engine.world)),
+    playerBodies: playerBodies,
+    boundaryBodies: boundaryBodies,
     timestamp: engine.timing.timestamp
   };
   process.send({ message: procConstants.R_GAME_DATA, data: data })

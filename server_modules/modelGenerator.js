@@ -4,7 +4,8 @@ module.exports = {
   createPlayerModel(id) {
     return m.Bodies.circle(0, 0, 20, {
       mass: 20,
-      label: id
+      label: 'player',
+      playerId: id
     });
   },
 
@@ -12,19 +13,23 @@ module.exports = {
     return {
       bottom: m.Bodies.rectangle(width / 2, height - 20, width, 40, {
       	isStatic: true,
-        label: 'boundary_bottom'
+        label: 'boundary',
+        boundaryType: 'bottom'
       }),
       top: m.Bodies.rectangle(width / 2, 20, width, 40, {
       	isStatic: true,
-        label: 'boundary_top'
+        label: 'boundary',
+        boundaryType: 'top'
       }),
       left: m.Bodies.rectangle(20, height / 2, 40, height - 80, {
       	isStatic: true,
-        label: 'boundary_left'
+        label: 'boundary',
+        boundaryType: 'left'
       }),
       right: m.Bodies.rectangle(width - 20, height / 2, 40, height - 80, {
       	isStatic: true,
-        label: 'boundary_right'
+        label: 'boundary',
+        boundaryType: 'right'
       })
     }
   }

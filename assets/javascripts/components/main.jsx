@@ -26,6 +26,7 @@ class Main extends React.Component {
 
     this.updateQueue = new FastPriorityQueue(timestampComparator);
 
+    this.playerId = null;
     this.allBodies = {};
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
@@ -33,6 +34,8 @@ class Main extends React.Component {
     this.gameLoop = this.gameLoop.bind(this);
     this.startGameLoop = this.startGameLoop.bind(this);
     this.pauseGameLoop = this.pauseGameLoop.bind(this);
+    this.setRenderPropsPlayer = this.setRenderPropsPlayer.bind(this);
+    this.setRenderPropsBoundary = this.setRenderPropsBoundary.bind(this);
   }
 
   componentDidMount() {
@@ -41,9 +44,12 @@ class Main extends React.Component {
       this.setState({ message: data }, () => this.startGameLoop());
     });
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
+      const { gameData, playerId } = data;
+      this.playerId = playerId;
       this.updateQueue.add({
-        timestamp: data.timestamp,
-        bodies: data.bodies
+        timestamp: gameData.timestamp,
+        playerBodies: gameData.playerBodies,
+        boundaryBodies: gameData.boundaryBodies
       });
     });
     this.socket.emit(socketConstants.C_INITIALIZE);
@@ -55,7 +61,8 @@ class Main extends React.Component {
       options: {
         width: ENGINE_PARAMS.WIDTH,
         height: ENGINE_PARAMS.HEIGHT,
-        wireframes: false
+        wireframes: false,
+        showSleeping: false
       },
     });
 
@@ -83,7 +90,7 @@ class Main extends React.Component {
       this.updateQueue = new FastPriorityQueue(timestampComparator)
       return;
     }
-    const { bodies, timestamp } = this.updateQueue.poll();
+    const { playerBodies, boundaryBodies, timestamp } = this.updateQueue.poll();
 
     // console.log(this.engine.timing.timestamp);
     // console.log(timestamp);
@@ -92,22 +99,30 @@ class Main extends React.Component {
       this.engine.timing.timestamp = timestamp;
     }
 
+    const bodyTypes = [
+      { bodyList: boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
+      { bodyList: playerBodies, renderPropFunc: this.setRenderPropsPlayer }
+    ];
     let bodiesToAdd = [];
     let newValidBodyIds = [];
-    _.each(bodies, (unfilteredProps) => {
-      const props = _.omit(unfilteredProps, ['parts']);
-      newValidBodyIds.push(props.id);
-      const body = m.Composite.get(this.engine.world, props.id, props.type);
-      if (!_.isNull(body)) {
-        //Body already exists
-        m.Body.set(body, props);
-      }
-      else {
-        //Body needs to be created
-        let newBody = m.Body.create(props);
-        bodiesToAdd.push(newBody);
-        this.allBodies[props.id] = newBody;
-      }
+    _.each(bodyTypes, (bodyType) => {
+      let { bodyList, renderPropFunc } = bodyType;
+      _.each(bodyList, (unfilteredProps) => {
+        const props = _.omit(unfilteredProps, ['parts']);
+        newValidBodyIds.push(props.id);
+        const body = m.Composite.get(this.engine.world, props.id, props.type);
+        if (!_.isNull(body)) {
+          //Body already exists
+          renderPropFunc(props, body);
+          m.Body.set(body, props);
+        }
+        else {
+          //Body needs to be created
+          let newBody = m.Body.create(props);
+          bodiesToAdd.push(newBody);
+          this.allBodies[props.id] = newBody;
+        }
+      });
     });
     m.World.add(this.engine.world, bodiesToAdd);
 
@@ -131,6 +146,21 @@ class Main extends React.Component {
 
   pauseGameLoop() {
     Gameloop.clearGameLoop(this.gameLoopIntervalId);
+  }
+
+  setRenderPropsPlayer(props, body) {
+    if (body.playerId === this.playerId) {
+      props.render.fillStyle = 'green';
+      props.render.strokeStyle = 'green';
+    } else {
+      props.render.fillStyle = 'black';
+      props.render.strokeStyle = 'black';
+    }
+  }
+
+  setRenderPropsBoundary(props, body) {
+    props.render.fillStyle = '#242424';
+    props.render.strokeStyle = '#242424';
   }
 }
 export default Main;

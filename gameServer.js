@@ -4,6 +4,7 @@ const express = require('express'),
   session = require('express-session'),
   io = require('socket.io')(http),
   path = require('path'),
+  _ = require('underscore'),
   socketConstants = require(path.resolve(__dirname, 'shared/socketConstants.js')),
   procConstants = require(path.resolve(__dirname, 'server_modules/procConstants.js')),
   childProcess = require('child_process');
@@ -18,7 +19,12 @@ const gameProc = childProcess.fork(path.resolve(__dirname, 'server_modules/gameP
 gameProc.on('message', (procMsg) => {
   switch(procMsg.message) {
     case procConstants.R_GAME_DATA:
-      io.sockets.emit(socketConstants.S_GAME_UPDATE, procMsg.data);
+      _.values(io.sockets.connected).forEach((socket) => {
+        socket.emit(socketConstants.S_GAME_UPDATE, {
+          playerId: socket.id,
+          gameData: procMsg.data
+        });
+      });
       console.log('SENT UPDATE ' + procMsg.data.timestamp);
       break;
   }

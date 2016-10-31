@@ -3,7 +3,8 @@ const procConstants = {
   P_ADD_PLAYER: 'P_ADD_PLAYER',
   P_REMOVE_PLAYER: 'P_REMOVE_PLAYER',
   P_PLAYER_MOVE: 'P_PLAYER_MOVE',
-  R_GAME_DATA: 'R_GAME_DATA'
+  R_GAME_DATA: 'R_GAME_DATA',
+  R_PLAYERS_THAT_MOVED: 'R_PLAYERS_THAT_MOVED'
 };
 
 module.exports = procConstants;

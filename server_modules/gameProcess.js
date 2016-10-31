@@ -51,7 +51,8 @@ process.on('message', (message) => {
       let newPlayer = {
         id: message.data.socketId,
         body: modelGenerator.createPlayerModel(message.data.socketId),
-        movementDirections: []
+        movementDirections: [],
+        lastClientTimestamp: null
       };
 
       //Position the player
@@ -72,6 +73,7 @@ process.on('message', (message) => {
       player = allPlayersBySocketId[message.data.socketId];
       if (player) {
         player.movementDirections = message.data.directions;
+        player.lastClientTimestamp = message.data.clientTimestamp;
       }
       break;
   }
@@ -91,9 +93,12 @@ function pauseGameLoop() {
 
 function gameLoop(delta) {
   m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
-
+  let playersThatMoved = [];
   //Resolve player movement requests
   _.each(_.values(allPlayersBySocketId), (player) => {
+    if(player.movementDirections.length > 0) {
+      playersThatMoved.push({ id: player.id, lastClientTimestamp: player.lastClientTimestamp });
+    }
     player.movementDirections.forEach((direction) => {
       m.Body.applyForce(player.body, player.body.position, MOVEMENT_FORCES[direction]);
     });
@@ -114,19 +119,30 @@ function gameLoop(delta) {
   // if (engine.timing.timestamp > 1000) {
   //   m.World.remove(engine.world, b_boxA);
   // }
+  process.send({ message: procConstants.R_PLAYERS_THAT_MOVED, data: playersThatMoved });
 }
 
 function sendUpdate() {
   const bodies = removeCircular(m.Composite.allBodies(engine.world));
   const playerBodies = _.filter(bodies, (body) => body.label === 'player');
   const boundaryBodies = _.filter(bodies, (body) => body.label === 'boundary');
-  const data = {
-    //ENGINE_PARAMS: ENGINE_PARAMS,
+  const gameData = {
     playerBodies: playerBodies,
     boundaryBodies: boundaryBodies,
-    timestamp: engine.timing.timestamp
+    timestamp: engine.timing.timestamp,
   };
-  process.send({ message: procConstants.R_GAME_DATA, data: data })
+  const playerDataBySocketId = {};
+  _.each(allPlayersBySocketId, (player, socketId) => {
+    playerDataBySocketId[socketId] = {
+      lastClientTimestamp: player.lastClientTimestamp
+    }
+  });
+  process.send({
+    message: procConstants.R_GAME_DATA, data: {
+      gameData: gameData,
+      playerDataBySocketId: playerDataBySocketId
+    }
+  });
 }
 
 function removeCircular(object) {

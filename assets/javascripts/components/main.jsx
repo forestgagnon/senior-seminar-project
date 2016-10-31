@@ -4,7 +4,7 @@ import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 
-const LAG_SIMULATION_MS = 0;
+const LAG_SIMULATION_MS = 200;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -40,6 +40,7 @@ class Main extends React.Component {
     this.renderer = null;
 
     this.gameLoopIntervalId = null;
+    this.updateIntervalId = null;
 
     this.updateQueue = new FastPriorityQueue(timestampComparator);
 
@@ -47,6 +48,9 @@ class Main extends React.Component {
     this.allBodies = {};
     this.playerBody = null;
     this.keyMap = {};
+    this.latency = 0;
+    this.lastMoveConfirmation = 0;
+    this.pauseCorrection = false;
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -63,14 +67,26 @@ class Main extends React.Component {
       this.setState({ message: data }, () => this.startGameLoop());
     });
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
-      const { gameData, playerId } = data;
-      this.playerId = playerId;
+      const { gameData, playerId, lastClientTimestamp } = data;
+      this.playerId = playerId
       setTimeout(()=>{this.updateQueue.add({
         timestamp: gameData.timestamp,
         playerBodies: gameData.playerBodies,
-        boundaryBodies: gameData.boundaryBodies
+        boundaryBodies: gameData.boundaryBodies,
+        lastClientTimestamp: lastClientTimestamp
       })}, LAG_SIMULATION_MS);
     });
+
+    this.socket.on(socketConstants.S_MOVE_CONFIRMATION, (data) => {
+      setTimeout(() => {
+        clearInterval(this.updateIntervalId);
+        this.latency = Date.now() - data.lastClientTimestamp;
+        this.lastMoveConfirmation = data.lastClientTimestamp;
+        setInterval(this.updateGame, 1000/80);
+        this.pauseCorrection = false;
+      }, LAG_SIMULATION_MS);
+    });
+
     this.socket.emit(socketConstants.C_INITIALIZE);
 
     //Initialize renderer
@@ -95,7 +111,7 @@ class Main extends React.Component {
        this.keyMap[e.which] = false;
     }.bind(this);
 
-    setInterval(this.updateGame, 1000/80);
+    this.updateIntervalId = setInterval(this.updateGame, 1000/80);
 
   }
 
@@ -109,21 +125,35 @@ class Main extends React.Component {
   }
 
   updateGame(data) {
+    const now = Date.now();
     if(this.updateQueue.isEmpty()) {
       this.updateQueue.trim();
       return;
     }
     else if(this.updateQueue.size > 50) {
-      this.updateQueue = new FastPriorityQueue(timestampComparator)
+      this.updateQueue = new FastPriorityQueue(timestampComparator);
       return;
     }
-    const { playerBodies, boundaryBodies, timestamp } = this.updateQueue.poll();
-    // console.log(this.engine.timing.timestamp);
-    // console.log(timestamp);
+    const { playerBodies, boundaryBodies, timestamp, lastClientTimestamp } = this.updateQueue.poll();
+    console.log('LOCAL: ' + this.engine.timing.timestamp);
+    console.log('SERVER:' + timestamp);
+    console.log('DIFF:' + (this.engine.timing.timestamp - timestamp));
     //Update timestamp
-    if (Math.abs(timestamp - this.engine.timing.timestamp) > 0) {
-      this.engine.timing.timestamp = timestamp;
+
+    if (this.pauseCorrection || lastClientTimestamp < this.lastMoveConfirmation) {
+      console.log("Blah!");
+      this.updateQueue = new FastPriorityQueue(timestampComparator);
+      return;
     }
+
+    console.log(this.updateQueue.size);
+
+    this.engine.timing.timestamp = timestamp + LAG_SIMULATION_MS;
+
+    // if (Math.abs(timestamp - this.engine.timing.timestamp) > 0) {
+    //   this.engine.timing.timestamp = timestamp + LAG_SIMULATION_MS;
+    // }
+
 
     const bodyTypes = [
       { bodyList: boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
@@ -140,7 +170,15 @@ class Main extends React.Component {
         if (!_.isNull(body)) {
           //Body already exists
           renderPropFunc(props, body);
-          m.Body.set(body, props);
+          if (this.playerBody && body.id === this.playerBody.id) {
+            console.log(lastClientTimestamp, this.lastMoveConfirmation);
+            if (!this.pauseCorrection && lastClientTimestamp >= this.lastMoveConfirmation) {
+              m.Body.set(body, props);
+            }
+          }
+          else {
+            m.Body.set(body, props);
+          }
         }
         else {
           //Body needs to be created
@@ -149,7 +187,7 @@ class Main extends React.Component {
           m.Body.set(newBody, props);
           bodiesToAdd.push(newBody);
           this.allBodies[props.id] = newBody;
-          if (newBody.playerId === this.playerId) {
+          if (newBody.label === 'player' && newBody.playerId === this.playerId) {
             this.playerBody = newBody;
           }
         }
@@ -189,7 +227,15 @@ class Main extends React.Component {
     }
 
     if(directions.length > 0) {
-      setTimeout(()=>{this.socket.emit(socketConstants.C_MOVE, directions);}, LAG_SIMULATION_MS);
+      // setTimeout(() => { this.pausePlayerCorrection = false; }, 2 * LAG_SIMULATION_MS);
+      this.pauseCorrection = true;
+      setTimeout(() => {
+        this.socket.emit(socketConstants.C_MOVE, {
+          directions: directions,
+          clientTimestamp: Date.now()
+        });
+      }, LAG_SIMULATION_MS);
+
     }
 
     m.Engine.update(this.engine, this.engine.timing.delta);

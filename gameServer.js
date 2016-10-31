@@ -22,10 +22,19 @@ gameProc.on('message', (procMsg) => {
       _.values(io.sockets.connected).forEach((socket) => {
         socket.emit(socketConstants.S_GAME_UPDATE, {
           playerId: socket.id,
-          gameData: procMsg.data
+          gameData: procMsg.data.gameData,
+          lastClientTimestamp: procMsg.data.playerDataBySocketId[socket.id] ? procMsg.data.playerDataBySocketId[socket.id].lastClientTimestamp : null
         });
       });
-      console.log('SENT UPDATE ' + procMsg.data.timestamp);
+      console.log('SENT UPDATE ' + procMsg.data.gameData.timestamp);
+      break;
+
+    case procConstants.R_PLAYERS_THAT_MOVED:
+      procMsg.data.forEach((player) => {
+        io.sockets.connected[player.id].emit(socketConstants.S_MOVE_CONFIRMATION, {
+          lastClientTimestamp: player.lastClientTimestamp
+        });
+      });
       break;
   }
 });
@@ -48,12 +57,13 @@ io.on('connection', (socket) => {
     socket.emit(socketConstants.S_INITIALIZE, "blah");
   });
 
-  socket.on(socketConstants.C_MOVE, (directions) => {
+  socket.on(socketConstants.C_MOVE, (data) => {
     gameProc.send({
       message: procConstants.P_PLAYER_MOVE,
       data: {
         socketId: socket.id,
-        directions: directions
+        directions: data.directions,
+        clientTimestamp: data.clientTimestamp
       }
     });
   });

@@ -51,6 +51,7 @@ class Main extends React.Component {
     this.latency = 0;
     this.lastMoveConfirmation = 0;
     this.pauseCorrection = false;
+    this.lastCorrection = Date.now();
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -66,6 +67,13 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_INITIALIZE, (data) => {
       this.setState({ message: data }, () => this.startGameLoop());
     });
+
+    this.socket.on(socketConstants.S_PING_REQUEST, (data) => {
+      setTimeout(() => {
+        this.socket.emit(socketConstants.C_PING_RESPONSE, { serverTimestamp: data.serverTimestamp });
+      }, LAG_SIMULATION_MS);
+    });
+
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
       const { gameData, playerId, lastClientTimestamp } = data;
       this.playerId = playerId
@@ -126,7 +134,6 @@ class Main extends React.Component {
   }
 
   updateGame(data) {
-    const now = Date.now();
     if(this.updateQueue.isEmpty()) {
       this.updateQueue.trim();
       return;
@@ -143,7 +150,7 @@ class Main extends React.Component {
 
     this.pauseGameLoop();
     console.log(timeReceived, this.lastMoveConfirmation, timeReceived - this.lastMoveConfirmation);
-    if (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS) {
+    if (Date.now() - this.lastCorrection < 1000 && (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
       this.startGameLoop();
       return;
     }
@@ -191,6 +198,7 @@ class Main extends React.Component {
       delete this.allBodies[idToDelete];
     });
 
+    this.lastCorrection = Date.now();
     this.startGameLoop();
 
   }

@@ -68,7 +68,22 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on(socketConstants.C_PING_RESPONSE, (data) => {
+    gameProc.send({
+      message: procConstants.P_UPDATE_PLAYER_LATENCY,
+      data: {
+        socketId: socket.id,
+        latency: Date.now() - data.serverTimestamp
+      }
+    });
+  });
+
   socket.on('disconnect', () => {
     gameProc.send({ message: procConstants.P_REMOVE_PLAYER, data: { socketId: socket.id } });
   });
 });
+
+setInterval(() => {
+  const now = Date.now();
+  io.sockets.emit(socketConstants.S_PING_REQUEST, { serverTimestamp: now });
+}, 1000);

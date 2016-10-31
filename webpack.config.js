@@ -51,7 +51,8 @@ module.exports = {
       Redux: 'redux',
       update: 'react-addons-update',
       socketIO: 'socket.io-client',
-      m: 'matter-js'
+      // m: 'matter-js',
+      m: path.resolve(__dirname, 'shared/matter-edge-build.js')
     })
   ]
 };

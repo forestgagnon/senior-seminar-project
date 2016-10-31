@@ -2,12 +2,19 @@ const path = require('path'),
   _ = require('underscore'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
   physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
-  m = require('matter-js'),
+  // m = require('matter-js'),
+  m = require(path.resolve(__dirname, '../shared/matter-edge-build.js')),
+  MatterWorldWrap = require(path.resolve(__dirname, '../shared/matter-world-wrap.js'))(m),
   gameloop = require('node-gameloop'),
-  modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'));
+  modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'))(m);
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
+
+m.Engine.update = m.Common.chain(
+    m.Engine.update,
+    MatterWorldWrap.update
+);
 
 //========== GLOBALS ==========\\
 let gameLoopId;
@@ -26,6 +33,8 @@ const engine = m.Engine.create({ enableSleeping: true });
 engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
 engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
 engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
+engine.world.bounds.min = { x: 0, y: 0 };
+engine.world.bounds.max = { x: ENGINE_PARAMS.WIDTH, y: ENGINE_PARAMS.HEIGHT };
 
 let boundaries = modelGenerator.createBoundaries(ENGINE_PARAMS.WIDTH, ENGINE_PARAMS.HEIGHT);
 m.World.add(engine.world, _.values(boundaries));

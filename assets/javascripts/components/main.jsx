@@ -2,6 +2,9 @@ import socketConstants from 'shared/socketConstants';
 import physicsConfig from 'shared/physicsConfig';
 import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
+import MatterWorldWrap from 'shared/matter-world-wrap';
+
+const LAG_SIMULATION_MS = 0;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -22,10 +25,17 @@ class Main extends React.Component {
       message: ""
     };
 
+    m.Engine.update = m.Common.chain(
+        m.Engine.update,
+        MatterWorldWrap(m).update
+    );
+
     this.engine = m.Engine.create({ enableSleeping: true });
     this.engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
     this.engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
     this.engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
+    this.engine.world.bounds.min = { x: 0, y: 0 };
+    this.engine.world.bounds.max = { x: ENGINE_PARAMS.WIDTH, y: ENGINE_PARAMS.HEIGHT };
 
     this.renderer = null;
 
@@ -55,11 +65,11 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
       const { gameData, playerId } = data;
       this.playerId = playerId;
-      this.updateQueue.add({
+      setTimeout(()=>{this.updateQueue.add({
         timestamp: gameData.timestamp,
         playerBodies: gameData.playerBodies,
         boundaryBodies: gameData.boundaryBodies
-      });
+      })}, LAG_SIMULATION_MS);
     });
     this.socket.emit(socketConstants.C_INITIALIZE);
 
@@ -179,7 +189,7 @@ class Main extends React.Component {
     }
 
     if(directions.length > 0) {
-      this.socket.emit(socketConstants.C_MOVE, directions);
+      setTimeout(()=>{this.socket.emit(socketConstants.C_MOVE, directions);}, LAG_SIMULATION_MS);
     }
 
     m.Engine.update(this.engine, this.engine.timing.delta);

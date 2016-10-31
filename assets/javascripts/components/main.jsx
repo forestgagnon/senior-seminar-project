@@ -22,7 +22,8 @@ class Main extends React.Component {
     this.gameCanvasRef = null;
     this.socket = null;
     this.state = {
-      message: ""
+      message: "",
+      latency: 0,
     };
 
     m.Engine.update = m.Common.chain(
@@ -48,7 +49,6 @@ class Main extends React.Component {
     this.allBodies = {};
     this.playerBody = null;
     this.keyMap = {};
-    this.latency = 0;
     this.lastMoveConfirmation = 0;
     this.pauseCorrection = false;
     this.lastCorrection = Date.now();
@@ -75,9 +75,9 @@ class Main extends React.Component {
     });
 
     this.socket.on(socketConstants.S_PING_NOTIFICATION, (data) => {
-      this.latency = data.latency;
+      this.setState({ latency: data.latency });
     });
-
+    //TODO: remove lag simulation delays from non-ping-detection functions
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
       const { gameData, playerId, lastClientTimestamp } = data;
       this.playerId = playerId
@@ -131,7 +131,11 @@ class Main extends React.Component {
     return (
       <div className="main-container">
         <div ref={(r) => this.gameCanvasRef = r}></div>
-        {this.state.message}
+        <div className="info-box">
+          <div className="info-box-content">
+            <p>Latency: {this.state.latency} ms</p>
+          </div>
+        </div>
       </div>
     );
   }

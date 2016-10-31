@@ -7,10 +7,10 @@ const engineParams = {
 };
 
 const movementForces = {
-  up: { x: 0, y: -0.1 },
-  down: { x: 0, y: 0.1 },
-  left: { x: -0.1, y: 0 },
-  right: { x: 0.1, y: 0 },
+  up: { x: 0, y: -0.025 },
+  down: { x: 0, y: 0.025 },
+  left: { x: -0.025, y: 0 },
+  right: { x: 0.025, y: 0 },
 };
 
 module.exports = {

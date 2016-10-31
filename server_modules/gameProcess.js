@@ -52,7 +52,8 @@ process.on('message', (message) => {
         id: message.data.socketId,
         body: modelGenerator.createPlayerModel(message.data.socketId),
         movementDirections: [],
-        lastClientTimestamp: null
+        lastClientTimestamp: null,
+        latency: 0
       };
 
       //Position the player
@@ -75,6 +76,11 @@ process.on('message', (message) => {
         player.movementDirections = message.data.directions;
         player.lastClientTimestamp = message.data.clientTimestamp;
       }
+      break;
+
+    case procConstants.P_UPDATE_PLAYER_LATENCY:
+      player = allPlayersBySocketId[message.data.socketId];
+      player.latency = message.data.latency;
       break;
   }
 });

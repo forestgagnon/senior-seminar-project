@@ -4,7 +4,7 @@ import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 
-const LAG_SIMULATION_MS = 200;
+const LAG_SIMULATION_MS = 300;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -73,7 +73,8 @@ class Main extends React.Component {
         timestamp: gameData.timestamp,
         playerBodies: gameData.playerBodies,
         boundaryBodies: gameData.boundaryBodies,
-        lastClientTimestamp: lastClientTimestamp
+        lastClientTimestamp: lastClientTimestamp,
+        timeReceived: Date.now()
       })}, LAG_SIMULATION_MS);
     });
 
@@ -81,7 +82,7 @@ class Main extends React.Component {
       setTimeout(() => {
         clearInterval(this.updateIntervalId);
         this.latency = Date.now() - data.lastClientTimestamp;
-        this.lastMoveConfirmation = data.lastClientTimestamp;
+        this.lastMoveConfirmation = Date.now();
         setInterval(this.updateGame, 1000/80);
         this.pauseCorrection = false;
       }, LAG_SIMULATION_MS);
@@ -134,26 +135,18 @@ class Main extends React.Component {
       this.updateQueue = new FastPriorityQueue(timestampComparator);
       return;
     }
-    const { playerBodies, boundaryBodies, timestamp, lastClientTimestamp } = this.updateQueue.poll();
-    console.log('LOCAL: ' + this.engine.timing.timestamp);
-    console.log('SERVER:' + timestamp);
-    console.log('DIFF:' + (this.engine.timing.timestamp - timestamp));
+    const { playerBodies, boundaryBodies, timestamp, lastClientTimestamp, timeReceived } = this.updateQueue.poll();
+    // console.log('LOCAL: ' + this.engine.timing.timestamp);
+    // console.log('SERVER:' + timestamp);
+    // console.log('DIFF:' + (this.engine.timing.timestamp - timestamp));
     //Update timestamp
 
-    if (this.pauseCorrection || lastClientTimestamp < this.lastMoveConfirmation) {
-      console.log("Blah!");
-      this.updateQueue = new FastPriorityQueue(timestampComparator);
+    this.pauseGameLoop();
+    console.log(timeReceived, this.lastMoveConfirmation, timeReceived - this.lastMoveConfirmation);
+    if (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS) {
+      this.startGameLoop();
       return;
     }
-
-    console.log(this.updateQueue.size);
-
-    this.engine.timing.timestamp = timestamp + LAG_SIMULATION_MS;
-
-    // if (Math.abs(timestamp - this.engine.timing.timestamp) > 0) {
-    //   this.engine.timing.timestamp = timestamp + LAG_SIMULATION_MS;
-    // }
-
 
     const bodyTypes = [
       { bodyList: boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
@@ -171,10 +164,7 @@ class Main extends React.Component {
           //Body already exists
           renderPropFunc(props, body);
           if (this.playerBody && body.id === this.playerBody.id) {
-            console.log(lastClientTimestamp, this.lastMoveConfirmation);
-            if (!this.pauseCorrection && lastClientTimestamp >= this.lastMoveConfirmation) {
               m.Body.set(body, props);
-            }
           }
           else {
             m.Body.set(body, props);
@@ -200,6 +190,8 @@ class Main extends React.Component {
       m.World.remove(this.engine.world, this.allBodies[idToDelete]);
       delete this.allBodies[idToDelete];
     });
+
+    this.startGameLoop();
 
   }
 

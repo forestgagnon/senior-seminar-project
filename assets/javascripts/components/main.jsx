@@ -74,6 +74,10 @@ class Main extends React.Component {
       }, LAG_SIMULATION_MS);
     });
 
+    this.socket.on(socketConstants.S_PING_NOTIFICATION, (data) => {
+      this.latency = data.latency;
+    });
+
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
       const { gameData, playerId, lastClientTimestamp } = data;
       this.playerId = playerId
@@ -89,7 +93,6 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_MOVE_CONFIRMATION, (data) => {
       setTimeout(() => {
         clearInterval(this.updateIntervalId);
-        this.latency = Date.now() - data.lastClientTimestamp;
         this.lastMoveConfirmation = Date.now();
         setInterval(this.updateGame, 1000/80);
         this.pauseCorrection = false;

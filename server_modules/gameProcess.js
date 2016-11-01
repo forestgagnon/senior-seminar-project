@@ -6,7 +6,8 @@ const path = require('path'),
   m = require(path.resolve(__dirname, '../shared/matter-edge-build.js')),
   MatterWorldWrap = require(path.resolve(__dirname, '../shared/matter-world-wrap.js'))(m),
   gameloop = require('node-gameloop'),
-  modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'))(m);
+  modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'))(m),
+  miscUtils = require(path.resolve(__dirname, '../shared/miscUtils.js'));
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -29,7 +30,7 @@ let b_boxA = m.Bodies.rectangle(400, 200, 80, 80, {
 });
 m.Body.setMass(b_boxA, 20);
 
-const engine = m.Engine.create({ enableSleeping: true });
+const engine = m.Engine.create({ enableSleeping: false });
 engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
 engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
 engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
@@ -89,6 +90,7 @@ function initGameLoop() {
   clearInterval(sendUpdate);
 
   setInterval(sendUpdate, 1000 / 30);
+  // setInterval(sendUpdate, 1000 / 1);
   gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / ENGINE_PARAMS.FPS);
 }
 
@@ -129,7 +131,7 @@ function gameLoop(delta) {
 }
 
 function sendUpdate() {
-  const bodies = removeCircular(m.Composite.allBodies(engine.world));
+  const bodies = miscUtils.removeCircular(m.Composite.allBodies(engine.world));
   const playerBodies = _.filter(bodies, (body) => body.label === 'player');
   const boundaryBodies = _.filter(bodies, (body) => body.label === 'boundary');
   const gameData = {
@@ -149,19 +151,4 @@ function sendUpdate() {
       playerDataBySocketId: playerDataBySocketId
     }
   });
-}
-
-function removeCircular(object) {
-  let cache = [];
-  return JSON.parse(JSON.stringify(object, function(key, value) {
-      if (typeof value === 'object' && value !== null) {
-          if (cache.indexOf(value) !== -1) {
-              // Circular reference found, discard key
-              return;
-          }
-          // Store value in our collection
-          cache.push(value);
-      }
-      return value;
-  }));
 }

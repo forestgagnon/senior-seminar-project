@@ -3,8 +3,9 @@ import physicsConfig from 'shared/physicsConfig';
 import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
+import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 300;
+const LAG_SIMULATION_MS = 400;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -23,7 +24,7 @@ class Main extends React.Component {
     this.socket = null;
     this.state = {
       message: "",
-      latency: 0,
+      latency: LAG_SIMULATION_MS,
     };
 
     m.Engine.update = m.Common.chain(
@@ -31,7 +32,7 @@ class Main extends React.Component {
         MatterWorldWrap(m).update
     );
 
-    this.engine = m.Engine.create({ enableSleeping: true });
+    this.engine = m.Engine.create({ enableSleeping: false });
     this.engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
     this.engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
     this.engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
@@ -52,6 +53,7 @@ class Main extends React.Component {
     this.lastMoveConfirmation = 0;
     this.pauseCorrection = false;
     this.lastCorrection = Date.now();
+    this.lastDelta = this.engine.timing.delta;
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -94,8 +96,8 @@ class Main extends React.Component {
       setTimeout(() => {
         clearInterval(this.updateIntervalId);
         this.lastMoveConfirmation = Date.now();
-        setInterval(this.updateGame, 1000/80);
         this.pauseCorrection = false;
+        setInterval(this.updateGame, 1000/80);
       }, LAG_SIMULATION_MS);
     });
 
@@ -155,12 +157,17 @@ class Main extends React.Component {
     // console.log('DIFF:' + (this.engine.timing.timestamp - timestamp));
     //Update timestamp
 
-    this.pauseGameLoop();
+    this.pauseGameLoop(); //TODO: is this needed?
     console.log(timeReceived, this.lastMoveConfirmation, timeReceived - this.lastMoveConfirmation);
-    if (Date.now() - this.lastCorrection < 1000 && (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
-      this.startGameLoop();
+    // if (Date.now() - this.lastCorrection < 1000 && (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
+    if (this.pauseCorrection) {
+      this.startGameLoop(); //TODO: is this needed?
       return;
     }
+
+    //Rewind time if possible
+    clearInterval(this.updateIntervalId);
+
 
     const bodyTypes = [
       { bodyList: boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
@@ -205,8 +212,19 @@ class Main extends React.Component {
       delete this.allBodies[idToDelete];
     });
 
+    if (true) {
+      let forwardDelta = this.state.latency;
+      console.log('FAST FORWARDED BY ------', forwardDelta);
+      m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
+      // m.Engine.update(this.engine, 2*forwardDelta, (2*forwardDelta) / this.lastDelta);
+      m.Engine.update(this.engine, 2*forwardDelta);
+      m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
+      // m.Engine.update(this.engine, 2*forwardDelta);
+      this.lastDelta = 2*forwardDelta;
+    }
     this.lastCorrection = Date.now();
-    this.startGameLoop();
+    this.startGameLoop(); //TODO: is this needed?
+    this.updateIntervalId = setInterval(this.updateGame, 1000/80);
 
   }
 
@@ -245,7 +263,9 @@ class Main extends React.Component {
 
     }
 
+    // m.Engine.update(this.engine, this.engine.timing.delta, this.engine.timing.delta / this.lastDelta);
     m.Engine.update(this.engine, this.engine.timing.delta);
+    this.lastDelta = this.engine.timing.delta;
     m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
   }
 

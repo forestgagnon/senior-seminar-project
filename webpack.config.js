@@ -48,7 +48,6 @@ module.exports = {
       _: 'underscore',
       React: 'react',
       ReactDOM: 'react-dom',
-      Redux: 'redux',
       update: 'react-addons-update',
       socketIO: 'socket.io-client',
       // m: 'matter-js',

@@ -12,6 +12,8 @@ const path = require('path'),
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
 
+let updateNum = 0;
+
 m.Engine.update = m.Common.chain(
     m.Engine.update,
     MatterWorldWrap.update
@@ -40,6 +42,19 @@ engine.world.bounds.max = { x: ENGINE_PARAMS.WIDTH, y: ENGINE_PARAMS.HEIGHT };
 let boundaries = modelGenerator.createBoundaries(ENGINE_PARAMS.WIDTH, ENGINE_PARAMS.HEIGHT);
 m.World.add(engine.world, _.values(boundaries));
 
+const numSquares = miscUtils.getRandomInt(5, 10);
+let squares = [];
+for (let i = 0; i < numSquares; i++) {
+  const squareSize = miscUtils.getRandomInt(5, 25);
+  let square = modelGenerator.createSquare(squareSize, squareSize);
+  m.Body.setPosition(square, {
+    x: miscUtils.getRandomInt(40, ENGINE_PARAMS.WIDTH - 40),
+    y: miscUtils.getRandomInt(40, ENGINE_PARAMS.HEIGHT - 40)
+  });
+  squares.push(square);
+}
+m.World.add(engine.world, squares);
+
 process.on('message', (message) => {
   console.log(message.message);
   let player;
@@ -58,7 +73,7 @@ process.on('message', (message) => {
       };
 
       //Position the player
-      m.Body.setPosition(newPlayer.body, { x: 50, y: ENGINE_PARAMS.HEIGHT / 2 });
+      m.Body.setPosition(newPlayer.body, { x: ENGINE_PARAMS.WIDTH / 2, y: ENGINE_PARAMS.HEIGHT / 2 });
       allPlayersBySocketId[newPlayer.id] = newPlayer;
       playersToAdd.push(newPlayer);
       break;
@@ -134,10 +149,15 @@ function sendUpdate() {
   const bodies = miscUtils.removeCircular(m.Composite.allBodies(engine.world));
   const playerBodies = _.filter(bodies, (body) => body.label === 'player');
   const boundaryBodies = _.filter(bodies, (body) => body.label === 'boundary');
+  const squareBodies = _.filter(bodies, (body) => body.label === 'square');
   const gameData = {
-    playerBodies: playerBodies,
-    boundaryBodies: boundaryBodies,
+    bodies: {
+      playerBodies: playerBodies,
+      boundaryBodies: boundaryBodies,
+      squareBodies: squareBodies
+    },
     timestamp: engine.timing.timestamp,
+    updateNum: updateNum++
   };
   const playerDataBySocketId = {};
   _.each(allPlayersBySocketId, (player, socketId) => {

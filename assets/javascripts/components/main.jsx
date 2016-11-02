@@ -54,6 +54,7 @@ class Main extends React.Component {
     this.pauseCorrection = false;
     this.lastCorrection = Date.now();
     this.lastDelta = this.engine.timing.delta;
+    this.lastUpdateNum = 0;
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -84,9 +85,9 @@ class Main extends React.Component {
       const { gameData, playerId, lastClientTimestamp } = data;
       this.playerId = playerId
       setTimeout(()=>{this.updateQueue.add({
+        bodies: gameData.bodies,
         timestamp: gameData.timestamp,
-        playerBodies: gameData.playerBodies,
-        boundaryBodies: gameData.boundaryBodies,
+        updateNum: gameData.updateNum,
         lastClientTimestamp: lastClientTimestamp,
         timeReceived: Date.now()
       })}, LAG_SIMULATION_MS);
@@ -151,7 +152,7 @@ class Main extends React.Component {
       this.updateQueue = new FastPriorityQueue(timestampComparator);
       return;
     }
-    const { playerBodies, boundaryBodies, timestamp, lastClientTimestamp, timeReceived } = this.updateQueue.poll();
+    const { bodies, timestamp, lastClientTimestamp, timeReceived, updateNum } = this.updateQueue.poll();
     // console.log('LOCAL: ' + this.engine.timing.timestamp);
     // console.log('SERVER:' + timestamp);
     // console.log('DIFF:' + (this.engine.timing.timestamp - timestamp));
@@ -167,11 +168,20 @@ class Main extends React.Component {
 
     //Rewind time if possible
     clearInterval(this.updateIntervalId);
+    console.log(updateNum);
+    if (updateNum < this.lastUpdateNum) {
+      console.log('=========================');
+      this.allBodies = {};
+      this.playerBody = null;
+      m.World.clear(this.engine.world, false);
+    }
+    this.lastUpdateNum = updateNum;
 
 
     const bodyTypes = [
-      { bodyList: boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
-      { bodyList: playerBodies, renderPropFunc: this.setRenderPropsPlayer }
+      { bodyList: bodies.boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
+      { bodyList: bodies.playerBodies, renderPropFunc: this.setRenderPropsPlayer },
+      { bodyList: bodies.squareBodies, renderPropFunc: this.setRenderPropsSquare }
     ];
     let bodiesToAdd = [];
     let newValidBodyIds = [];
@@ -292,9 +302,14 @@ class Main extends React.Component {
     props.render.fillStyle = '#242424';
     props.render.strokeStyle = '#242424';
   }
+
+  setRenderPropsSquare(props, body) {
+    props.render.fillStyle = 'red';
+    props.render.strokeStyle = 'red';
+  }
 }
 export default Main;
 
 function timestampComparator(a,b) {
-  return a.timestamp < b.timestamp;
+  return a.updateNum < b.updateNum;
 }

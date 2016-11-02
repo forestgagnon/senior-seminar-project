@@ -32,6 +32,13 @@ module.exports = (m) => {
           boundaryType: 'right'
         })
       }
+    },
+
+    createSquare(width, height) {
+      return m.Bodies.rectangle(0, 0, width, height, {
+        label: 'square',
+        maxVelocity: 100
+      });
     }
   }
 };

@@ -1,5 +1,5 @@
 module.exports = {
-  removeCircular: function(object) {
+  removeCircular(object) {
     let cache = [];
     return JSON.parse(JSON.stringify(object, function(key, value) {
         if (typeof value === 'object' && value !== null) {
@@ -12,5 +12,13 @@ module.exports = {
         }
         return value;
     }));
+  },
+
+  getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+  },
+
+  getRandom(min, max) {
+    return Math.random() * (max - min) + min;
   }
 };

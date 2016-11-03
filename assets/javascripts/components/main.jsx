@@ -168,9 +168,9 @@ class Main extends React.Component {
 
     //Rewind time if possible
     clearInterval(this.updateIntervalId);
-    console.log(updateNum);
 
     // If the new updateNum is lower, then the game was probably restarted, so clear the world
+    //TODO: make this less hacky by issuing a game restart socket message
     if (updateNum < this.lastUpdateNum) {
       this.allBodies = {};
       this.playerBody = null;

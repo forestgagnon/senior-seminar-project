@@ -169,8 +169,9 @@ class Main extends React.Component {
     //Rewind time if possible
     clearInterval(this.updateIntervalId);
     console.log(updateNum);
+
+    // If the new updateNum is lower, then the game was probably restarted, so clear the world
     if (updateNum < this.lastUpdateNum) {
-      console.log('=========================');
       this.allBodies = {};
       this.playerBody = null;
       m.World.clear(this.engine.world, false);

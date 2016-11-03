@@ -37,7 +37,7 @@ module.exports = (m) => {
     createSquare(width, height) {
       return m.Bodies.rectangle(0, 0, width, height, {
         label: 'square',
-        maxVelocity: 100
+        maxVelocity: 50
       });
     }
   }

@@ -5,7 +5,7 @@ import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 400;
+const LAG_SIMULATION_MS = 150;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -97,9 +97,10 @@ class Main extends React.Component {
       setTimeout(() => {
         clearInterval(this.updateIntervalId);
         this.lastMoveConfirmation = Date.now();
+        this.updateQueue = new FastPriorityQueue(timestampComparator);
         this.pauseCorrection = false;
         setInterval(this.updateGame, 1000/80);
-      }, LAG_SIMULATION_MS);
+      }, LAG_SIMULATION_MS + this.state.latency);
     });
 
     this.socket.emit(socketConstants.C_INITIALIZE);
@@ -224,14 +225,14 @@ class Main extends React.Component {
     });
 
     if (true) {
-      let forwardDelta = this.state.latency;
-      console.log('FAST FORWARDED BY ------', forwardDelta);
-      m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
-      // m.Engine.update(this.engine, 2*forwardDelta, (2*forwardDelta) / this.lastDelta);
-      m.Engine.update(this.engine, 2*forwardDelta);
-      m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
-      // m.Engine.update(this.engine, 2*forwardDelta);
-      this.lastDelta = 2*forwardDelta;
+      // m.Render.stop(this.renderer);
+      let iterations = Math.floor((2*this.state.latency) / this.engine.timing.delta);
+      for (let i = 0; i < iterations; i++) {
+        m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
+        m.Engine.update(this.engine, this.engine.timing.delta);
+        m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
+      }
+      // m.Render.run(this.renderer);
     }
     this.lastCorrection = Date.now();
     this.startGameLoop(); //TODO: is this needed?
@@ -273,7 +274,6 @@ class Main extends React.Component {
       }, LAG_SIMULATION_MS);
 
     }
-
     // m.Engine.update(this.engine, this.engine.timing.delta, this.engine.timing.delta / this.lastDelta);
     m.Engine.update(this.engine, this.engine.timing.delta);
     this.lastDelta = this.engine.timing.delta;

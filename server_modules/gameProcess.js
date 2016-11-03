@@ -104,8 +104,8 @@ process.on('message', (message) => {
 function initGameLoop() {
   clearInterval(sendUpdate);
 
+  // setInterval(sendUpdate, 1000 / 30);
   setInterval(sendUpdate, 1000 / 30);
-  // setInterval(sendUpdate, 1000 / 1);
   gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / ENGINE_PARAMS.FPS);
 }
 

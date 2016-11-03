@@ -160,7 +160,6 @@ class Main extends React.Component {
     //Update timestamp
 
     this.pauseGameLoop(); //TODO: is this needed?
-    console.log(timeReceived, this.lastMoveConfirmation, timeReceived - this.lastMoveConfirmation);
     // if (Date.now() - this.lastCorrection < 1000 && (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
     if (this.pauseCorrection) {
       this.startGameLoop(); //TODO: is this needed?
@@ -197,7 +196,7 @@ class Main extends React.Component {
           //Body already exists
           renderPropFunc(props, body);
           if (this.playerBody && body.id === this.playerBody.id) {
-              m.Body.set(body, props);
+            m.Body.set(body, props);
           }
           else {
             m.Body.set(body, props);
@@ -224,16 +223,14 @@ class Main extends React.Component {
       delete this.allBodies[idToDelete];
     });
 
-    if (true) {
-      // m.Render.stop(this.renderer);
-      let iterations = Math.floor((2*this.state.latency) / this.engine.timing.delta);
-      for (let i = 0; i < iterations; i++) {
-        m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
-        m.Engine.update(this.engine, this.engine.timing.delta);
-        m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
-      }
-      // m.Render.run(this.renderer);
+    // m.Render.stop(this.renderer);
+    let iterations = Math.floor((2*this.state.latency) / this.engine.timing.delta);
+    for (let i = 0; i < iterations; i++) {
+      m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
+      m.Engine.update(this.engine, this.engine.timing.delta);
+      m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
     }
+    // m.Render.run(this.renderer);
     this.lastCorrection = Date.now();
     this.startGameLoop(); //TODO: is this needed?
     this.updateIntervalId = setInterval(this.updateGame, 1000/80);

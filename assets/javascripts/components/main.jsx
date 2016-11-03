@@ -5,7 +5,7 @@ import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 150;
+const LAG_SIMULATION_MS = 10;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -224,7 +224,7 @@ class Main extends React.Component {
     });
 
     // m.Render.stop(this.renderer);
-    let iterations = Math.floor((2*this.state.latency) / this.engine.timing.delta);
+    let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
     for (let i = 0; i < iterations; i++) {
       m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
       m.Engine.update(this.engine, this.engine.timing.delta);

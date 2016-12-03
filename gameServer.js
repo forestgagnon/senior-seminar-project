@@ -69,7 +69,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on(socketConstants.C_PING_RESPONSE, (data) => {
-    const latency = Date.now() - data.serverTimestamp;
+    const latency = Math.ceil((Date.now() - data.serverTimestamp) / 2);
     gameProc.send({
       message: procConstants.P_UPDATE_PLAYER_LATENCY,
       data: {

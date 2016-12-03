@@ -5,7 +5,7 @@ import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 10;
+const LAG_SIMULATION_MS = 40;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -24,7 +24,7 @@ class Main extends React.Component {
     this.socket = null;
     this.state = {
       message: "",
-      latency: LAG_SIMULATION_MS,
+      latency: 0,
     };
 
     m.Engine.update = m.Common.chain(
@@ -74,7 +74,7 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_PING_REQUEST, (data) => {
       setTimeout(() => {
         this.socket.emit(socketConstants.C_PING_RESPONSE, { serverTimestamp: data.serverTimestamp });
-      }, LAG_SIMULATION_MS);
+      }, LAG_SIMULATION_MS * 2);
     });
 
     this.socket.on(socketConstants.S_PING_NOTIFICATION, (data) => {
@@ -90,7 +90,7 @@ class Main extends React.Component {
         updateNum: gameData.updateNum,
         lastClientTimestamp: lastClientTimestamp,
         timeReceived: Date.now()
-      })}, LAG_SIMULATION_MS);
+      })}, this.state.latency);
     });
 
     this.socket.on(socketConstants.S_MOVE_CONFIRMATION, (data) => {
@@ -99,8 +99,8 @@ class Main extends React.Component {
         this.lastMoveConfirmation = Date.now();
         this.updateQueue = new FastPriorityQueue(timestampComparator);
         this.pauseCorrection = false;
-        setInterval(this.updateGame, 1000/80);
-      }, LAG_SIMULATION_MS + this.state.latency);
+        this.updateIntervalId = setInterval(this.updateGame, 1000/80);
+      }, this.state.latency);
     });
 
     this.socket.emit(socketConstants.C_INITIALIZE);
@@ -268,7 +268,7 @@ class Main extends React.Component {
           directions: directions,
           clientTimestamp: Date.now()
         });
-      }, LAG_SIMULATION_MS);
+      }, this.state.latency);
 
     }
     // m.Engine.update(this.engine, this.engine.timing.delta, this.engine.timing.delta / this.lastDelta);

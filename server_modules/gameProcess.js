@@ -1,9 +1,7 @@
 const path = require('path'),
   _ = require('underscore'),
-  fixedQueue = require('fixedqueue').FixedQueue,
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
   physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
-  // m = require('matter-js'),
   m = require(path.resolve(__dirname, '../shared/matter-edge-build.js')),
   MatterWorldWrap = require(path.resolve(__dirname, '../shared/matter-world-wrap.js'))(m),
   gameloop = require('node-gameloop'),
@@ -16,8 +14,8 @@ const MOVEMENT_FORCES = physicsConfig.movementForces;
 let updateNum = 0;
 
 m.Engine.update = m.Common.chain(
-    m.Engine.update,
-    MatterWorldWrap.update
+  m.Engine.update,
+  MatterWorldWrap.update
 );
 
 //========== GLOBALS ==========\\
@@ -26,12 +24,6 @@ let allPlayersBySocketId = {};
 let game;
 let playersToAdd = [];
 let playersToRemove = [];
-
-let b_boxA = m.Bodies.rectangle(400, 200, 80, 80, {
-	isStatic: false,
-  label: 'boxA'
-});
-m.Body.setMass(b_boxA, 20);
 
 const engine = m.Engine.create({ enableSleeping: false });
 engine.timing.delta = 1000/ENGINE_PARAMS.FPS;
@@ -71,10 +63,9 @@ process.on('message', (message) => {
         movementDirections: [],
         lastClientTimestamp: null,
         latency: 0
-        // positionHistory: []
       };
 
-      //Position the player
+      //Position the player //TODO: add spawnpoints
       m.Body.setPosition(newPlayer.body, { x: ENGINE_PARAMS.WIDTH / 2, y: ENGINE_PARAMS.HEIGHT / 2 });
       allPlayersBySocketId[newPlayer.id] = newPlayer;
       playersToAdd.push(newPlayer);
@@ -107,7 +98,6 @@ process.on('message', (message) => {
 function initGameLoop() {
   clearInterval(sendUpdate);
 
-  // setInterval(sendUpdate, 1000 / 30);
   setInterval(sendUpdate, 1000 / 30);
   gameLoopId = gameloop.setGameLoop(gameLoop, 1000 / ENGINE_PARAMS.FPS);
 }
@@ -120,21 +110,9 @@ function pauseGameLoop() {
 function gameLoop(delta) {
   m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
   let playersThatMoved = [];
+
   //Resolve player movement requests
   _.each(_.values(allPlayersBySocketId), (player) => {
-    //Set player position based on latency
-    // let currentBodyProps = null;
-    // let playerMoved = false;
-    // let ticksBehind = 1;
-    // let oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
-    // while (oldPosition && (engine.timing.timestamp - oldPosition.timestamp < 2*player.latency)) {
-    //   ticksBehind++;
-    //   oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
-    // }
-    // if (oldPosition && playerMoved) {
-    //   currentBodyProps = JSON.parse(JSON.stringify(_.pick(player.body, _.keys(oldPosition.bodyProps))));
-    //   // m.Body.set(player.body, oldPosition.bodyProps);
-    // }
 
     if (player.movementDirections.length > 0) {
       playerMoved = true;
@@ -144,32 +122,9 @@ function gameLoop(delta) {
       m.Body.applyForce(player.body, player.body.position, MOVEMENT_FORCES[direction]);
     });
     player.movementDirections = [];
-    // if (oldPosition && playerMoved) {
-    //   let timeDiff = engine.timing.timestamp - oldPosition.timestamp;
-    //   let iterations = Math.ceil(timeDiff / engine.timing.delta);
-    //   console.log(iterations);
-    //   for (let i = 1; i < iterations; i++) {
-    //     // m.Body.update(player.body, engine.timing.delta);
-    //   }
-    //   // m.Body.set(player.body, currentBodyProps);
-    // }
   });
 
   m.Engine.update(engine, engine.timing.delta);
-  //
-  // _.each(_.values(allPlayersBySocketId), (player) => {
-  //   player.positionHistory.push({
-  //     timestamp: engine.timing.timestamp,
-  //     bodyProps: JSON.parse(JSON.stringify({
-  //       position:player.body.position,
-  //       angle: player.body.angle,
-  //       inertia: player.body.inertia,
-  //       velocity: player.body.velocity,
-  //       angularVelocity: player.body.angularVelocity
-  //     }))
-  //   });
-  //   //TODO: splice position history to prevent it from growing too large
-  // });
 
   while(playersToAdd.length > 0) {
     let newPlayer = playersToAdd.pop();
@@ -181,9 +136,7 @@ function gameLoop(delta) {
   }
 
   m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
-  // if (engine.timing.timestamp > 1000) {
-  //   m.World.remove(engine.world, b_boxA);
-  // }
+
   process.send({ message: procConstants.R_PLAYERS_THAT_MOVED, data: playersThatMoved });
 }
 

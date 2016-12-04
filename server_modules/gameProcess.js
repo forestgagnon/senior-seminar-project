@@ -56,10 +56,6 @@ for (let i = 0; i < numSquares; i++) {
 }
 m.World.add(engine.world, squares);
 
-m.Events.on(engine, "collisionActive", (e) => {
-  
-});
-
 process.on('message', (message) => {
   console.log(message.message);
   let player;
@@ -103,6 +99,7 @@ process.on('message', (message) => {
     case procConstants.P_UPDATE_PLAYER_LATENCY:
       player = allPlayersBySocketId[message.data.socketId];
       player.latency = message.data.latency;
+      player.body.latency = message.data.latency;
       break;
   }
 });

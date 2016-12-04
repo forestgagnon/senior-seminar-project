@@ -12,6 +12,7 @@ module.exports = (m) => {
         label: 'player',
         playerId: id,
         maxVelocity: 20,
+        latency: 0,
         collisionFilter: {
           category: collisionFilterCategories.PLAYER,
           mask: collisionFilterCategories.WALL & collisionFilterCategories.OTHER

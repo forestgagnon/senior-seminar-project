@@ -5,7 +5,7 @@ import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 300;
+const LAG_SIMULATION_MS = 400;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -51,13 +51,16 @@ class Main extends React.Component {
     this.playerBody = null;
     this.keyMap = {};
     this.lastMoveConfirmation = 0;
-    this.pauseCorrection = false;
+    this.pausePlayerCorrection = false;
     this.lastCorrection = null;
     this.lastPlayerCorrection = null;
     this.lastDelta = this.engine.timing.delta;
     this.lastUpdateNum = 0;
     this.latestUpdate = null;
     this.timeOfLastMove = null;
+
+    this.pausedBodiesById = {};
+
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -66,6 +69,10 @@ class Main extends React.Component {
     this.pauseGameLoop = this.pauseGameLoop.bind(this);
     this.setRenderPropsPlayer = this.setRenderPropsPlayer.bind(this);
     this.setRenderPropsBoundary = this.setRenderPropsBoundary.bind(this);
+    this.handleCollisions = this.handleCollisions.bind(this);
+
+
+    m.Events.on(this.engine, "collisionActive", this.handleCollisions);
   }
 
   componentDidMount() {
@@ -101,7 +108,7 @@ class Main extends React.Component {
         // clearInterval(this.updateIntervalId);
         this.lastMoveConfirmation = Date.now();
         this.updateQueue = new FastPriorityQueue(timestampComparator);
-        // this.pauseCorrection = false;
+        // this.pausePlayerCorrection = false;
         // this.updateIntervalId = setInterval(this.updateGame, 1000/80);
       }, this.state.latency);
     });
@@ -147,6 +154,25 @@ class Main extends React.Component {
     );
   }
 
+  handleCollisions(e) {
+    const now = Date.now();
+    e.pairs.forEach((pair) => {
+      const { bodyA, bodyB } = pair;
+      if (bodyA.playerId === this.playerId) {
+        this.pausedBodiesById[bodyB.id] = {
+          body: bodyB,
+          lastCollideTime: now
+        };
+      }
+      else if (bodyB.playerId === this.playerId) {
+        this.pausedBodiesById[bodyA.id] = {
+          body: bodyA,
+          lastCollideTime: now
+        };
+      }
+    });
+  }
+
   updateGame(data) {
     // if(this.updateQueue.isEmpty()) {
     //   this.updateQueue.trim();
@@ -167,8 +193,8 @@ class Main extends React.Component {
     //Update timestamp
 
     // this.pauseGameLoop(); //TODO: is this needed?
-    // if (Date.now() - this.lastCorrection < 1000 && (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
-    // if (this.pauseCorrection) {
+    // if (Date.now() - this.lastCorrection < 1000 && (this.pausePlayerCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
+    // if (this.pausePlayerCorrection) {
     //   this.startGameLoop(); //TODO: is this needed?
     //   return;
     // }
@@ -203,12 +229,12 @@ class Main extends React.Component {
           //Body already exists
           renderPropFunc(props, body);
           if (this.playerBody && body.id === this.playerBody.id) {
-            if (!this.pauseCorrection) {
+            if (!this.pausePlayerCorrection) {
               this.lastPlayerCorrection = Date.now();
               m.Body.set(body, props);
             }
           }
-          else {
+          else if (_.isUndefined(this.pausedBodiesById[body.id])) {
             m.Body.set(body, props);
           }
         }
@@ -223,6 +249,7 @@ class Main extends React.Component {
             this.playerBody = newBody;
           }
         }
+
       });
     });
     m.World.add(this.engine.world, bodiesToAdd);
@@ -231,6 +258,16 @@ class Main extends React.Component {
     _.each(_.keys(_.omit(this.allBodies, newValidBodyIds)), (idToDelete) => {
       m.World.remove(this.engine.world, this.allBodies[idToDelete]);
       delete this.allBodies[idToDelete];
+    });
+
+    //Compensate for other player's latency
+    bodies.playerBodies.forEach((body) => {
+      if (body.latency && body.playerId !== this.playerId) {
+        m.Body.setVelocity(body, {
+          x: body.velocity.x / body.latency,
+          y: body.velocity.y / body.latency
+        });
+      }
     });
 
     // m.Render.stop(this.renderer);
@@ -253,6 +290,7 @@ class Main extends React.Component {
   }
 
   gameLoop(delta) {
+    const NOW = Date.now();
     m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
 
     // let updateResult = this.updateGame();
@@ -278,19 +316,19 @@ class Main extends React.Component {
 
     if (directions.length > 0) {
       // setTimeout(() => { this.pausePlayerCorrection = false; }, 2 * LAG_SIMULATION_MS);
-      this.pauseCorrection = true;
-      console.log('paused player correction');
+      this.pausePlayerCorrection = true;
+      // console.log('paused player correction');
       setTimeout(() => {
         this.socket.emit(socketConstants.C_MOVE, {
           directions: directions,
-          clientTimestamp: Date.now()
+          clientTimestamp: NOW
         });
       }, this.state.latency);
-      this.timeOfLastMove = Date.now();
+      this.timeOfLastMove = NOW;
     }
-    else if (this.pauseCorrection && this.timeOfLastMove !== null && Date.now() - this.timeOfLastMove > 4*this.state.latency) {
-      console.log('unpaused player correction');
-      this.pauseCorrection = false;
+    else if (this.pausePlayerCorrection && this.timeOfLastMove !== null && NOW - this.timeOfLastMove > 4*this.state.latency) {
+      // console.log('unpaused player correction');
+      this.pausePlayerCorrection = false;
     }
 
     let updateResult = this.updateGame();
@@ -298,18 +336,35 @@ class Main extends React.Component {
     if (updateResult) {
       m.Render.stop(this.renderer);
       let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
-      if (this.pauseCorrection) {
+      if (this.pausePlayerCorrection) {
         m.World.remove(this.engine.world, this.playerBody);
       }
+
+      //Unpause bodies that haven't collided in awhile
+      let bodyIdsToUnpause = [];
+      _.each(this.pausedBodiesById, (pausedBody, id) => {
+        if (NOW - pausedBody.lastCollideTime > this.state.latency*4) {
+          bodyIdsToUnpause.push(id);
+        }
+      });
+      this.pausedBodiesById = _.omit(this.pausedBodiesById, bodyIdsToUnpause);
+
+      //Temporarily remove paused bodies before fast-forwarding
+      let tempRemovedBodies = [];
+      _.values(this.pausedBodiesById).forEach((pausedBody) => {
+        tempRemovedBodies.push(pausedBody);
+      });
+      m.World.remove(this.engine.world, tempRemovedBodies);
       for (let i = 0; i < iterations; i++) {
         m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
         m.Engine.update(this.engine, this.engine.timing.delta);
         // m.Engine.update(this.engine, this.state.latency);
         m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
       }
-      if (this.pauseCorrection) {
+      if (this.pausePlayerCorrection) {
         m.World.add(this.engine.world, this.playerBody);
       }
+      m.World.add(this.engine.world, tempRemovedBodies);
       m.Render.run(this.renderer);
     }
     m.Engine.update(this.engine, this.engine.timing.delta);

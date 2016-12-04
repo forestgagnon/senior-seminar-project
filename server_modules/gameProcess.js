@@ -1,5 +1,6 @@
 const path = require('path'),
   _ = require('underscore'),
+  fixedQueue = require('fixedqueue').FixedQueue,
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
   physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
   // m = require('matter-js'),
@@ -69,7 +70,8 @@ process.on('message', (message) => {
         body: modelGenerator.createPlayerModel(message.data.socketId),
         movementDirections: [],
         lastClientTimestamp: null,
-        latency: 0
+        latency: 0,
+        positionHistory: []
       };
 
       //Position the player
@@ -119,17 +121,37 @@ function gameLoop(delta) {
   let playersThatMoved = [];
   //Resolve player movement requests
   _.each(_.values(allPlayersBySocketId), (player) => {
-    if(player.movementDirections.length > 0) {
+    //Set player position based on latency
+    let currentPosition = JSON.parse(JSON.stringify(player.body.position));
+    let ticksBehind = 1;
+    let oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
+    while (oldPosition && (engine.timing.timestamp - oldPosition.timestamp < 2*player.latency)) {
+      ticksBehind++;
+      oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
+    }
+    if (oldPosition) {
+      m.Body.setPosition(player.body, oldPosition.position);
+    }
+
+    if (player.movementDirections.length > 0) {
       playersThatMoved.push({ id: player.id, lastClientTimestamp: player.lastClientTimestamp });
     }
     player.movementDirections.forEach((direction) => {
       m.Body.applyForce(player.body, player.body.position, MOVEMENT_FORCES[direction]);
     });
     player.movementDirections = [];
+    m.Body.setPosition(player.body, currentPosition);
   });
 
   m.Engine.update(engine, engine.timing.delta);
-  m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
+
+  _.each(_.values(allPlayersBySocketId), (player) => {
+    player.positionHistory.push({
+      timestamp: engine.timing.timestamp,
+      position: JSON.parse(JSON.stringify(player.body.position))
+    });
+    //TODO: splice position history to prevent it from growing too large
+  });
 
   while(playersToAdd.length > 0) {
     let newPlayer = playersToAdd.pop();
@@ -139,6 +161,8 @@ function gameLoop(delta) {
     let deletePlayer = playersToRemove.pop();
     m.World.remove(engine.world, deletePlayer.body);
   }
+
+  m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
   // if (engine.timing.timestamp > 1000) {
   //   m.World.remove(engine.world, b_boxA);
   // }

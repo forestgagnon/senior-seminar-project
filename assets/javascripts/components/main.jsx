@@ -5,7 +5,7 @@ import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 40;
+const LAG_SIMULATION_MS = 300;
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
@@ -55,6 +55,8 @@ class Main extends React.Component {
     this.lastCorrection = Date.now();
     this.lastDelta = this.engine.timing.delta;
     this.lastUpdateNum = 0;
+    this.latestUpdate = null;
+    this.timeOfLastMove = 0;
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -84,22 +86,22 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
       const { gameData, playerId, lastClientTimestamp } = data;
       this.playerId = playerId
-      setTimeout(()=>{this.updateQueue.add({
+      setTimeout(()=>{this.latestUpdate = {
         bodies: gameData.bodies,
         timestamp: gameData.timestamp,
         updateNum: gameData.updateNum,
         lastClientTimestamp: lastClientTimestamp,
         timeReceived: Date.now()
-      })}, this.state.latency);
+      }}, this.state.latency);
     });
 
     this.socket.on(socketConstants.S_MOVE_CONFIRMATION, (data) => {
       setTimeout(() => {
-        clearInterval(this.updateIntervalId);
+        // clearInterval(this.updateIntervalId);
         this.lastMoveConfirmation = Date.now();
         this.updateQueue = new FastPriorityQueue(timestampComparator);
-        this.pauseCorrection = false;
-        this.updateIntervalId = setInterval(this.updateGame, 1000/80);
+        // this.pauseCorrection = false;
+        // this.updateIntervalId = setInterval(this.updateGame, 1000/80);
       }, this.state.latency);
     });
 
@@ -127,7 +129,7 @@ class Main extends React.Component {
        this.keyMap[e.which] = false;
     }.bind(this);
 
-    this.updateIntervalId = setInterval(this.updateGame, 1000/80);
+    // this.updateIntervalId = setInterval(this.updateGame, 1000/80);
 
   }
 
@@ -145,29 +147,33 @@ class Main extends React.Component {
   }
 
   updateGame(data) {
-    if(this.updateQueue.isEmpty()) {
-      this.updateQueue.trim();
-      return;
+    // if(this.updateQueue.isEmpty()) {
+    //   this.updateQueue.trim();
+    //   return;
+    // }
+    // else if(this.updateQueue.size > 50) {
+    //   this.updateQueue = new FastPriorityQueue(timestampComparator);
+    //   return;
+    // }
+    if (this.latestUpdate === null) {
+      return false;
     }
-    else if(this.updateQueue.size > 50) {
-      this.updateQueue = new FastPriorityQueue(timestampComparator);
-      return;
-    }
-    const { bodies, timestamp, lastClientTimestamp, timeReceived, updateNum } = this.updateQueue.poll();
+    // const { bodies, timestamp, lastClientTimestamp, timeReceived, updateNum } = this.updateQueue.poll();
+    const { bodies, timestamp, lastClientTimestamp, timeReceived, updateNum } = this.latestUpdate;
     // console.log('LOCAL: ' + this.engine.timing.timestamp);
     // console.log('SERVER:' + timestamp);
     // console.log('DIFF:' + (this.engine.timing.timestamp - timestamp));
     //Update timestamp
 
-    this.pauseGameLoop(); //TODO: is this needed?
+    // this.pauseGameLoop(); //TODO: is this needed?
     // if (Date.now() - this.lastCorrection < 1000 && (this.pauseCorrection || timeReceived - this.lastMoveConfirmation < 2*LAG_SIMULATION_MS)) {
-    if (this.pauseCorrection) {
-      this.startGameLoop(); //TODO: is this needed?
-      return;
-    }
+    // if (this.pauseCorrection) {
+    //   this.startGameLoop(); //TODO: is this needed?
+    //   return;
+    // }
 
     //Rewind time if possible
-    clearInterval(this.updateIntervalId);
+    // clearInterval(this.updateIntervalId);
 
     // If the new updateNum is lower, then the game was probably restarted, so clear the world
     //TODO: make this less hacky by issuing a game restart socket message
@@ -196,7 +202,9 @@ class Main extends React.Component {
           //Body already exists
           renderPropFunc(props, body);
           if (this.playerBody && body.id === this.playerBody.id) {
-            m.Body.set(body, props);
+            if (!this.pauseCorrection) {
+              m.Body.set(body, props);
+            }
           }
           else {
             m.Body.set(body, props);
@@ -224,22 +232,28 @@ class Main extends React.Component {
     });
 
     // m.Render.stop(this.renderer);
-    let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
-    for (let i = 0; i < iterations; i++) {
-      m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
-      m.Engine.update(this.engine, this.engine.timing.delta);
-      m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
-    }
+    // let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
+    // // let iterations = 1;
+    // for (let i = 0; i < iterations; i++) {
+    //   m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
+    //   m.Engine.update(this.engine, this.engine.timing.delta);
+    //   // m.Engine.update(this.engine, this.state.latency);
+    //   m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
+    // }
     // m.Render.run(this.renderer);
     this.lastCorrection = Date.now();
-    this.startGameLoop(); //TODO: is this needed?
-    this.updateIntervalId = setInterval(this.updateGame, 1000/80);
+    // this.startGameLoop(); //TODO: is this needed?
+    // this.updateIntervalId = setInterval(this.updateGame, 1000/80);
+    this.latestUpdate = null;
+
+    return true;
 
   }
 
   gameLoop(delta) {
     m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
 
+    // let updateResult = this.updateGame();
     //Handle movement
     let directions = [];
     if (!_.isNull(this.playerBody)) {
@@ -260,18 +274,42 @@ class Main extends React.Component {
       }
     }
 
-    if(directions.length > 0) {
+    if (directions.length > 0) {
       // setTimeout(() => { this.pausePlayerCorrection = false; }, 2 * LAG_SIMULATION_MS);
       this.pauseCorrection = true;
+      console.log('paused player correction');
       setTimeout(() => {
         this.socket.emit(socketConstants.C_MOVE, {
           directions: directions,
           clientTimestamp: Date.now()
         });
       }, this.state.latency);
-
+      this.timeOfLastMove = Date.now();
     }
+    else if (this.pauseCorrection && Date.now() - this.timeOfLastMove > 2*this.state.latency) {
+      console.log('unpaused player correction');
+      this.pauseCorrection = false;
+    }
+
+    let updateResult = this.updateGame();
     // m.Engine.update(this.engine, this.engine.timing.delta, this.engine.timing.delta / this.lastDelta);
+    if (updateResult) {
+      m.Render.stop(this.renderer);
+      let iterations = Math.ceil((this.state.latency) / this.engine.timing.delta);
+      if (this.pauseCorrection) {
+        m.World.remove(this.engine.world, this.playerBody);
+      }
+      for (let i = 0; i < iterations; i++) {
+        m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
+        m.Engine.update(this.engine, this.engine.timing.delta);
+        // m.Engine.update(this.engine, this.state.latency);
+        m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
+      }
+      if (this.pauseCorrection) {
+        m.World.add(this.engine.world, this.playerBody);
+      }
+      m.Render.run(this.renderer);
+    }
     m.Engine.update(this.engine, this.engine.timing.delta);
     this.lastDelta = this.engine.timing.delta;
     m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });

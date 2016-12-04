@@ -236,7 +236,7 @@ class Main extends React.Component {
 
     //Compensate for other player's latency
     bodies.playerBodies.forEach((body) => {
-      if (body.latency && body.playerId !== this.playerId) {
+      if (this.state.latency && body.playerId !== this.playerId) {
         m.Body.setVelocity(body, {
           x: body.velocity.x / this.state.latency,
           y: body.velocity.y / this.state.latency

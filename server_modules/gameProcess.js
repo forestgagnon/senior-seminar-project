@@ -91,7 +91,7 @@ process.on('message', (message) => {
     case procConstants.P_PLAYER_MOVE:
       player = allPlayersBySocketId[message.data.socketId];
       if (player) {
-        player.movementDirections = message.data.directions;
+        player.movementDirections = player.movementDirections.concat(message.data.directions);
         player.lastClientTimestamp = message.data.clientTimestamp;
       }
       break;
@@ -122,25 +122,36 @@ function gameLoop(delta) {
   //Resolve player movement requests
   _.each(_.values(allPlayersBySocketId), (player) => {
     //Set player position based on latency
-    let currentPosition = JSON.parse(JSON.stringify(player.body.position));
+    let currentBodyProps = null;
+    let playerMoved = false;
     let ticksBehind = 1;
     let oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
     while (oldPosition && (engine.timing.timestamp - oldPosition.timestamp < 2*player.latency)) {
       ticksBehind++;
       oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
     }
-    if (oldPosition) {
-      m.Body.setPosition(player.body, oldPosition.position);
+    if (oldPosition && playerMoved) {
+      currentBodyProps = JSON.parse(JSON.stringify(_.pick(player.body, _.keys(oldPosition.bodyProps))));
+      m.Body.set(player.body, oldPosition.bodyProps);
     }
 
     if (player.movementDirections.length > 0) {
+      playerMoved = true;
       playersThatMoved.push({ id: player.id, lastClientTimestamp: player.lastClientTimestamp });
     }
     player.movementDirections.forEach((direction) => {
       m.Body.applyForce(player.body, player.body.position, MOVEMENT_FORCES[direction]);
     });
     player.movementDirections = [];
-    m.Body.setPosition(player.body, currentPosition);
+    if (oldPosition && playerMoved) {
+      let timeDiff = engine.timing.timestamp - oldPosition.timestamp;
+      let iterations = Math.ceil(timeDiff / engine.timing.delta);
+      console.log(iterations);
+      for (let i = 1; i < iterations; i++) {
+        // m.Body.update(player.body, engine.timing.delta);
+      }
+      // m.Body.set(player.body, currentBodyProps);
+    }
   });
 
   m.Engine.update(engine, engine.timing.delta);
@@ -148,7 +159,13 @@ function gameLoop(delta) {
   _.each(_.values(allPlayersBySocketId), (player) => {
     player.positionHistory.push({
       timestamp: engine.timing.timestamp,
-      position: JSON.parse(JSON.stringify(player.body.position))
+      bodyProps: JSON.parse(JSON.stringify({
+        position:player.body.position,
+        angle: player.body.angle,
+        inertia: player.body.inertia,
+        velocity: player.body.velocity,
+        angularVelocity: player.body.angularVelocity
+      }))
     });
     //TODO: splice position history to prevent it from growing too large
   });

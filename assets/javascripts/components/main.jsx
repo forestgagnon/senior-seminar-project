@@ -53,6 +53,7 @@ class Main extends React.Component {
     this.lastMoveConfirmation = 0;
     this.pauseCorrection = false;
     this.lastCorrection = Date.now();
+    this.lastPlayerCorrection = Date.now();
     this.lastDelta = this.engine.timing.delta;
     this.lastUpdateNum = 0;
     this.latestUpdate = null;
@@ -203,6 +204,7 @@ class Main extends React.Component {
           renderPropFunc(props, body);
           if (this.playerBody && body.id === this.playerBody.id) {
             if (!this.pauseCorrection) {
+              this.lastPlayerCorrection = Date.now();
               m.Body.set(body, props);
             }
           }
@@ -286,7 +288,7 @@ class Main extends React.Component {
       }, this.state.latency);
       this.timeOfLastMove = Date.now();
     }
-    else if (this.pauseCorrection && Date.now() - this.timeOfLastMove > 2*this.state.latency) {
+    else if (this.pauseCorrection && Date.now() - this.timeOfLastMove > 4*this.state.latency) {
       console.log('unpaused player correction');
       this.pauseCorrection = false;
     }
@@ -295,7 +297,7 @@ class Main extends React.Component {
     // m.Engine.update(this.engine, this.engine.timing.delta, this.engine.timing.delta / this.lastDelta);
     if (updateResult) {
       m.Render.stop(this.renderer);
-      let iterations = Math.ceil((this.state.latency) / this.engine.timing.delta);
+      let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
       if (this.pauseCorrection) {
         m.World.remove(this.engine.world, this.playerBody);
       }

@@ -58,6 +58,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on(socketConstants.C_MOVE, (data) => {
+    if (!_.isArray(data.directions)) {
+      throw new Error('INVALID_DIRECTIONS_OBJECT');
+    }
     gameProc.send({
       message: procConstants.P_PLAYER_MOVE,
       data: {

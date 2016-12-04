@@ -52,12 +52,12 @@ class Main extends React.Component {
     this.keyMap = {};
     this.lastMoveConfirmation = 0;
     this.pauseCorrection = false;
-    this.lastCorrection = Date.now();
-    this.lastPlayerCorrection = Date.now();
+    this.lastCorrection = null;
+    this.lastPlayerCorrection = null;
     this.lastDelta = this.engine.timing.delta;
     this.lastUpdateNum = 0;
     this.latestUpdate = null;
-    this.timeOfLastMove = 0;
+    this.timeOfLastMove = null;
 
     //========== COMPONENT INSTANCE BINDERS ==========\\
     this.updateGame = this.updateGame.bind(this);
@@ -288,7 +288,7 @@ class Main extends React.Component {
       }, this.state.latency);
       this.timeOfLastMove = Date.now();
     }
-    else if (this.pauseCorrection && Date.now() - this.timeOfLastMove > 4*this.state.latency) {
+    else if (this.pauseCorrection && this.timeOfLastMove !== null && Date.now() - this.timeOfLastMove > 4*this.state.latency) {
       console.log('unpaused player correction');
       this.pauseCorrection = false;
     }

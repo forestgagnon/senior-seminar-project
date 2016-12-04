@@ -70,8 +70,8 @@ process.on('message', (message) => {
         body: modelGenerator.createPlayerModel(message.data.socketId),
         movementDirections: [],
         lastClientTimestamp: null,
-        latency: 0,
-        positionHistory: []
+        latency: 0
+        // positionHistory: []
       };
 
       //Position the player
@@ -122,18 +122,18 @@ function gameLoop(delta) {
   //Resolve player movement requests
   _.each(_.values(allPlayersBySocketId), (player) => {
     //Set player position based on latency
-    let currentBodyProps = null;
-    let playerMoved = false;
-    let ticksBehind = 1;
-    let oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
-    while (oldPosition && (engine.timing.timestamp - oldPosition.timestamp < 2*player.latency)) {
-      ticksBehind++;
-      oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
-    }
-    if (oldPosition && playerMoved) {
-      currentBodyProps = JSON.parse(JSON.stringify(_.pick(player.body, _.keys(oldPosition.bodyProps))));
-      m.Body.set(player.body, oldPosition.bodyProps);
-    }
+    // let currentBodyProps = null;
+    // let playerMoved = false;
+    // let ticksBehind = 1;
+    // let oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
+    // while (oldPosition && (engine.timing.timestamp - oldPosition.timestamp < 2*player.latency)) {
+    //   ticksBehind++;
+    //   oldPosition = player.positionHistory[player.positionHistory.length - ticksBehind];
+    // }
+    // if (oldPosition && playerMoved) {
+    //   currentBodyProps = JSON.parse(JSON.stringify(_.pick(player.body, _.keys(oldPosition.bodyProps))));
+    //   // m.Body.set(player.body, oldPosition.bodyProps);
+    // }
 
     if (player.movementDirections.length > 0) {
       playerMoved = true;
@@ -143,32 +143,32 @@ function gameLoop(delta) {
       m.Body.applyForce(player.body, player.body.position, MOVEMENT_FORCES[direction]);
     });
     player.movementDirections = [];
-    if (oldPosition && playerMoved) {
-      let timeDiff = engine.timing.timestamp - oldPosition.timestamp;
-      let iterations = Math.ceil(timeDiff / engine.timing.delta);
-      console.log(iterations);
-      for (let i = 1; i < iterations; i++) {
-        // m.Body.update(player.body, engine.timing.delta);
-      }
-      // m.Body.set(player.body, currentBodyProps);
-    }
+    // if (oldPosition && playerMoved) {
+    //   let timeDiff = engine.timing.timestamp - oldPosition.timestamp;
+    //   let iterations = Math.ceil(timeDiff / engine.timing.delta);
+    //   console.log(iterations);
+    //   for (let i = 1; i < iterations; i++) {
+    //     // m.Body.update(player.body, engine.timing.delta);
+    //   }
+    //   // m.Body.set(player.body, currentBodyProps);
+    // }
   });
 
   m.Engine.update(engine, engine.timing.delta);
-
-  _.each(_.values(allPlayersBySocketId), (player) => {
-    player.positionHistory.push({
-      timestamp: engine.timing.timestamp,
-      bodyProps: JSON.parse(JSON.stringify({
-        position:player.body.position,
-        angle: player.body.angle,
-        inertia: player.body.inertia,
-        velocity: player.body.velocity,
-        angularVelocity: player.body.angularVelocity
-      }))
-    });
-    //TODO: splice position history to prevent it from growing too large
-  });
+  //
+  // _.each(_.values(allPlayersBySocketId), (player) => {
+  //   player.positionHistory.push({
+  //     timestamp: engine.timing.timestamp,
+  //     bodyProps: JSON.parse(JSON.stringify({
+  //       position:player.body.position,
+  //       angle: player.body.angle,
+  //       inertia: player.body.inertia,
+  //       velocity: player.body.velocity,
+  //       angularVelocity: player.body.angularVelocity
+  //     }))
+  //   });
+  //   //TODO: splice position history to prevent it from growing too large
+  // });
 
   while(playersToAdd.length > 0) {
     let newPlayer = playersToAdd.pop();

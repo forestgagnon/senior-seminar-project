@@ -112,7 +112,7 @@ function gameLoop(delta) {
   let playersThatMoved = [];
 
   //Resolve player movement requests
-  _.each(_.values(allPlayersBySocketId), (player) => {
+  _.each(allPlayersBySocketId, (player) => {
 
     if (player.movementDirections.length > 0) {
       playerMoved = true;

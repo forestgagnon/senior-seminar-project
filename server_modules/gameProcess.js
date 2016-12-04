@@ -56,6 +56,10 @@ for (let i = 0; i < numSquares; i++) {
 }
 m.World.add(engine.world, squares);
 
+m.Events.on(engine, "collisionActive", (e) => {
+  
+});
+
 process.on('message', (message) => {
   console.log(message.message);
   let player;

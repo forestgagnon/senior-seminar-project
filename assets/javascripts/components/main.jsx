@@ -5,8 +5,6 @@ import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
-const LAG_SIMULATION_MS = 100;
-
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
 const KEY_CODES = {
@@ -25,6 +23,7 @@ class Main extends React.Component {
     this.state = {
       message: "",
       latency: 0,
+      lagSimulationMs: 100
     };
 
     m.Engine.update = m.Common.chain(
@@ -83,7 +82,7 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_PING_REQUEST, (data) => {
       setTimeout(() => { //TODO: timeout is for latency simulation
         this.socket.emit(socketConstants.C_PING_RESPONSE, { serverTimestamp: data.serverTimestamp });
-      }, LAG_SIMULATION_MS * 2);
+      }, this.state.lagSimulationMs * 2);
     });
 
     this.socket.on(socketConstants.S_PING_NOTIFICATION, (data) => {
@@ -142,6 +141,13 @@ class Main extends React.Component {
         <div className="info-box">
           <div className="info-box-content">
             <p>Latency: {this.state.latency} ms</p>
+          </div>
+          <div className="info-box-content">
+            <span>Lag simulation: </span>
+            <input
+              value={this.state.lagSimulationMs}
+              onChange={(e) => this.setState({ lagSimulationMs: parseInt(e.target.value) })}
+            />
           </div>
         </div>
       </div>
@@ -232,8 +238,8 @@ class Main extends React.Component {
     bodies.playerBodies.forEach((body) => {
       if (body.latency && body.playerId !== this.playerId) {
         m.Body.setVelocity(body, {
-          x: body.velocity.x / body.latency,
-          y: body.velocity.y / body.latency
+          x: body.velocity.x / this.state.latency,
+          y: body.velocity.y / this.state.latency
         });
       }
     });

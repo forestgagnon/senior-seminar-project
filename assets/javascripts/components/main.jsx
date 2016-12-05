@@ -69,6 +69,7 @@ class Main extends React.Component {
     this.setRenderPropsBoundary = this.setRenderPropsBoundary.bind(this);
     this.handleCollisions = this.handleCollisions.bind(this);
     this.tickEngine = this.tickEngine.bind(this);
+    this.setLatencyCompensatedVelocity = this.setLatencyCompensatedVelocity.bind(this);
 
     m.Events.on(this.engine, "tick", this.handleCollisions);
   }
@@ -192,7 +193,6 @@ class Main extends React.Component {
     }
     this.lastUpdateNum = updateNum;
 
-
     const bodyTypes = [
       { bodyList: bodies.boundaryBodies, renderPropFunc: this.setRenderPropsBoundary },
       { bodyList: bodies.playerBodies, renderPropFunc: this.setRenderPropsPlayer },
@@ -217,6 +217,7 @@ class Main extends React.Component {
           }
           else if (!this.pausePlayerCorrection || _.isUndefined(this.pausedBodiesById[body.id])) {
             m.Body.set(body, props);
+            this.setLatencyCompensatedVelocity(body);
           }
           else {
             console.log('body ' + body.id + ' is paused'); //XXX
@@ -232,6 +233,9 @@ class Main extends React.Component {
           if (newBody.label === 'player' && newBody.playerId === this.playerId) {
             this.playerBody = newBody;
           }
+          else {
+            this.setLatencyCompensatedVelocity(newBody);
+          }
         }
 
       });
@@ -244,20 +248,19 @@ class Main extends React.Component {
       delete this.allBodies[idToDelete];
     });
 
-    //Compensate for other player's latency
-    bodies.playerBodies.forEach((body) => {
-      if (this.state.latency && body.playerId !== this.playerId) {
-        m.Body.setVelocity(body, {
-          x: body.velocity.x / this.state.latency,
-          y: body.velocity.y / this.state.latency
-        });
-      }
-    });
-
     this.lastCorrection = Date.now();
     this.latestUpdate = null;
 
     return true;
+  }
+
+  setLatencyCompensatedVelocity(body) {
+    if (this.state.latency) {
+      m.Body.setVelocity(body, {
+        x: body.velocity.x / this.state.latency,
+        y: body.velocity.y / this.state.latency
+      });
+    }
   }
 
   gameLoop(delta) {

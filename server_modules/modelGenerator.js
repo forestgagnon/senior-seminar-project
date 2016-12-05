@@ -28,25 +28,25 @@ module.exports = (m) => {
         bottom: m.Bodies.rectangle(width / 2, height - 20, width, 40, {
         	isStatic: true,
           label: 'boundary',
-          boundaryType: 'bottom',
+          boundaryType: 'BOTTOM',
           collisionFilter: boundaryCollisionFilter
         }),
         top: m.Bodies.rectangle(width / 2, 20, width, 40, {
         	isStatic: true,
           label: 'boundary',
-          boundaryType: 'top',
+          boundaryType: 'TOP',
           collisionFilter: boundaryCollisionFilter
         }),
         left: m.Bodies.rectangle(20, height / 2, 40, height - 80, {
         	isStatic: true,
           label: 'boundary',
-          boundaryType: 'left',
+          boundaryType: 'LEFT',
           collisionFilter: boundaryCollisionFilter
         }),
         right: m.Bodies.rectangle(width - 20, height / 2, 40, height - 80, {
         	isStatic: true,
           label: 'boundary',
-          boundaryType: 'right',
+          boundaryType: 'RIGHT',
           collisionFilter: boundaryCollisionFilter
         })
       }
@@ -55,7 +55,7 @@ module.exports = (m) => {
     createSquare(width, height) {
       return m.Bodies.rectangle(0, 0, width, height, {
         label: 'square',
-        maxVelocity: 50,
+        maxVelocity: 20,
         collisionFilter: {
           category: collisionFilterCategories.OTHER
         }

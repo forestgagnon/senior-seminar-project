@@ -1,8 +1,8 @@
 const path = require('path'),
   _ = require('underscore'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
-  physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js')),
   m = require(path.resolve(__dirname, '../shared/matter-edge-build.js')),
+  physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js'))(m),
   MatterWorldWrap = require(path.resolve(__dirname, '../shared/matter-world-wrap.js'))(m),
   gameloop = require('node-gameloop'),
   modelGenerator = require(path.resolve(__dirname, 'modelGenerator.js'))(m),
@@ -31,6 +31,8 @@ engine.timing.timeScale = ENGINE_PARAMS.TIME_SCALE; //default is 1
 engine.world.gravity.scale = ENGINE_PARAMS.GRAVITY; //default is 0.001
 engine.world.bounds.min = { x: 0, y: 0 };
 engine.world.bounds.max = { x: ENGINE_PARAMS.WIDTH, y: ENGINE_PARAMS.HEIGHT };
+
+m.Events.on(engine, "tick", handleCollisions);
 
 let boundaries = modelGenerator.createBoundaries(ENGINE_PARAMS.WIDTH, ENGINE_PARAMS.HEIGHT);
 m.World.add(engine.world, _.values(boundaries));
@@ -95,6 +97,13 @@ process.on('message', (message) => {
   }
 });
 
+function handleCollisions(e) {
+  e.collisionStart.forEach((pair) => {
+    const { bodyA, bodyB } = pair;
+    physicsConfig.boundaryBounceHandler(bodyA, bodyB);
+  });
+}
+
 function initGameLoop() {
   clearInterval(sendUpdate);
 
@@ -108,7 +117,6 @@ function pauseGameLoop() {
 }
 
 function gameLoop(delta) {
-  m.Events.trigger(engine, 'tick', { timestamp: engine.timing.timestamp });
   let playersThatMoved = [];
 
   //Resolve player movement requests
@@ -124,7 +132,7 @@ function gameLoop(delta) {
     player.movementDirections = [];
   });
 
-  m.Engine.update(engine, engine.timing.delta);
+  tickEngine();
 
   while(playersToAdd.length > 0) {
     let newPlayer = playersToAdd.pop();
@@ -135,9 +143,17 @@ function gameLoop(delta) {
     m.World.remove(engine.world, deletePlayer.body);
   }
 
-  m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
-
   process.send({ message: procConstants.R_PLAYERS_THAT_MOVED, data: playersThatMoved });
+}
+
+function tickEngine() {
+  m.Events.trigger(engine, 'tick', {
+    timestamp: engine.timing.timestamp,
+    collisionStart: engine.pairs.collisionStart,
+    collisionActive: engine.pairs.collisionActive
+  });
+  m.Engine.update(engine, engine.timing.delta);
+  m.Events.trigger(engine, 'afterTick', { timestamp: engine.timing.timestamp });
 }
 
 function sendUpdate() {

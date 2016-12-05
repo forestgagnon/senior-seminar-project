@@ -1,5 +1,6 @@
 import socketConstants from 'shared/socketConstants';
-import physicsConfig from 'shared/physicsConfig';
+import physicsConfigModule from 'shared/physicsConfig';
+const physicsConfig = physicsConfigModule(m);
 import Gameloop from 'node-gameloop';
 import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
@@ -43,8 +44,6 @@ class Main extends React.Component {
     this.gameLoopIntervalId = null;
     this.updateIntervalId = null;
 
-    this.updateQueue = new FastPriorityQueue(timestampComparator);
-
     this.playerId = null;
     this.allBodies = {};
     this.playerBody = null;
@@ -69,8 +68,9 @@ class Main extends React.Component {
     this.setRenderPropsPlayer = this.setRenderPropsPlayer.bind(this);
     this.setRenderPropsBoundary = this.setRenderPropsBoundary.bind(this);
     this.handleCollisions = this.handleCollisions.bind(this);
+    this.tickEngine = this.tickEngine.bind(this);
 
-    m.Events.on(this.engine, "collisionActive", this.handleCollisions);
+    m.Events.on(this.engine, "tick", this.handleCollisions);
   }
 
   componentDidMount() {
@@ -91,7 +91,7 @@ class Main extends React.Component {
     //TODO: remove lag simulation delays from non-ping-detection functions
     this.socket.on(socketConstants.S_GAME_UPDATE, (data) => {
       const { gameData, playerId, lastClientTimestamp } = data;
-      this.playerId = playerId
+      this.playerId = playerId;
       setTimeout(()=>{this.latestUpdate = { //TODO: timeout is for latency simulation
         bodies: gameData.bodies,
         timestamp: gameData.timestamp,
@@ -156,8 +156,10 @@ class Main extends React.Component {
 
   handleCollisions(e) {
     const now = Date.now();
-    e.pairs.forEach((pair) => {
+    e.collisionActive.forEach((pair) => {
       const { bodyA, bodyB } = pair;
+
+      //Handle correction pausing
       if (bodyA.playerId === this.playerId && bodyB.label !== 'boundary') {
         this.pausedBodiesById[bodyB.id] = {
           body: bodyB,
@@ -170,6 +172,11 @@ class Main extends React.Component {
           lastCollideTime: now
         };
       }
+    });
+    e.collisionStart.forEach((pair) => {
+      const { bodyA, bodyB } = pair;
+      //Handle boundary bounce collisions
+      physicsConfig.boundaryBounceHandler(bodyA, bodyB);
     });
   }
 
@@ -208,8 +215,11 @@ class Main extends React.Component {
               m.Body.set(body, props);
             }
           }
-          else if (_.isUndefined(this.pausedBodiesById[body.id])) {
+          else if (!this.pausePlayerCorrection || _.isUndefined(this.pausedBodiesById[body.id])) {
             m.Body.set(body, props);
+          }
+          else {
+            console.log('body ' + body.id + ' is paused'); //XXX
           }
         }
         else {
@@ -252,7 +262,6 @@ class Main extends React.Component {
 
   gameLoop(delta) {
     const NOW = Date.now();
-    m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
 
     //Handle player movement
     let directions = [];
@@ -290,30 +299,47 @@ class Main extends React.Component {
 
     //Update the world based on the latest server gamestate if available
     if (this.latestUpdate !== null) {
-      this.updateWorldToLatestGamestate();
       m.Render.stop(this.renderer);
-
-      /* Server gamestates are in the past. Before updating the world and fast forwarding, we need to
-      remove any objects that have their correction paused
-      (e.g. the player during moves, or things they have collided with recently)
-      */
-      if (this.pausePlayerCorrection) {
-        m.World.remove(this.engine.world, this.playerBody);
-      }
 
       //Unpause bodies that haven't collided with the player in awhile
       //TODO: non-player pausing is currently exhibiting weird behavior
       let bodyIdsToUnpause = [];
       _.each(this.pausedBodiesById, (pausedBody, id) => {
         if (NOW - pausedBody.lastCollideTime > this.state.latency*4) {
+          console.log('unpausing ' + id); //XXX
           bodyIdsToUnpause.push(id);
         }
       });
       this.pausedBodiesById = _.omit(this.pausedBodiesById, bodyIdsToUnpause);
 
+      this.updateWorldToLatestGamestate();
+
+      /* Server gamestates are in the pastd. Before updating the world and fast forwarding, we need to
+      remove any objects that have their correction paused
+      (e.g. the player during moves, or things they have collided with recently)
+      */
+      if (this.pausePlayerCorrection) {
+        m.World.remove(this.engine.world, this.playerBody);
+      }
+      else {
+        //Unpause everything else since player correction is not paused.
+        this.pausedBodiesById = {};
+      }
+
+      // //Unpause bodies that haven't collided with the player in awhile
+      // //TODO: non-player pausing is currently exhibiting weird behavior
+      // let bodyIdsToUnpause = [];
+      // _.each(this.pausedBodiesById, (pausedBody, id) => {
+      //   if (NOW - pausedBody.lastCollideTime > this.state.latency*4) {
+      //     console.log('unpausing ' + id); //XXX
+      //     bodyIdsToUnpause.push(id);
+      //   }
+      // });
+      // this.pausedBodiesById = _.omit(this.pausedBodiesById, bodyIdsToUnpause);
+
       //Temporarily remove paused non-player bodies before fast-forwarding
       let tempRemovedBodies = [];
-      _.values(this.pausedBodiesById).forEach((pausedBody) => {
+      _.each(this.pausedBodiesById, (pausedBody) => {
         tempRemovedBodies.push(pausedBody);
       });
       m.World.remove(this.engine.world, tempRemovedBodies);
@@ -321,9 +347,7 @@ class Main extends React.Component {
       //Fast forward the engine by the number of ticks corresponding to double the current latency
       let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
       for (let i = 0; i < iterations; i++) {
-        m.Events.trigger(this.engine, 'tick', { timestamp: this.engine.timing.timestamp });
-        m.Engine.update(this.engine, this.engine.timing.delta);
-        m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
+        this.tickEngine();
       }
 
       //Restore paused bodies back to the world
@@ -336,8 +360,16 @@ class Main extends React.Component {
     }
 
     //Tick the engine normally
+    this.tickEngine();
+  }
+
+  tickEngine() {
+    m.Events.trigger(this.engine, 'tick', {
+      timestamp: this.engine.timing.timestamp,
+      collisionStart: this.engine.pairs.collisionStart,
+      collisionActive: this.engine.pairs.collisionActive
+    });
     m.Engine.update(this.engine, this.engine.timing.delta);
-    this.lastDelta = this.engine.timing.delta;
     m.Events.trigger(this.engine, 'afterTick', { timestamp: this.engine.timing.timestamp });
   }
 

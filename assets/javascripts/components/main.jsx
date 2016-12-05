@@ -68,6 +68,7 @@ class Main extends React.Component {
     this.setRenderPropsPlayer = this.setRenderPropsPlayer.bind(this);
     this.setRenderPropsBoundary = this.setRenderPropsBoundary.bind(this);
     this.handleCollisions = this.handleCollisions.bind(this);
+    this.handleCorrectionPausing = this.handleCorrectionPausing.bind(this);
     this.tickEngine = this.tickEngine.bind(this);
     this.setLatencyCompensatedVelocity = this.setLatencyCompensatedVelocity.bind(this);
 
@@ -159,26 +160,32 @@ class Main extends React.Component {
     const now = Date.now();
     e.collisionActive.forEach((pair) => {
       const { bodyA, bodyB } = pair;
-
       //Handle correction pausing
-      if (bodyA.playerId === this.playerId && bodyB.label !== 'boundary') {
-        this.pausedBodiesById[bodyB.id] = {
-          body: bodyB,
-          lastCollideTime: now
-        };
-      }
-      else if (bodyB.playerId === this.playerId && bodyA.label !== 'boundary') {
-        this.pausedBodiesById[bodyA.id] = {
-          body: bodyA,
-          lastCollideTime: now
-        };
-      }
+      this.handleCorrectionPausing(bodyA, bodyB, now);
+
     });
     e.collisionStart.forEach((pair) => {
       const { bodyA, bodyB } = pair;
+      //Handle correction pausing
+      this.handleCorrectionPausing(bodyA, bodyB, now);
       //Handle boundary bounce collisions
       physicsConfig.boundaryBounceHandler(bodyA, bodyB);
     });
+  }
+
+  handleCorrectionPausing(bodyA, bodyB, now) {
+    if (bodyA.id === this.playerBody.id && bodyB.label !== 'boundary') {
+      this.pausedBodiesById[bodyB.id] = {
+        body: bodyB,
+        lastCollideTime: now
+      };
+    }
+    else if (bodyB.id === this.playerBody.id && bodyA.label !== 'boundary') {
+      this.pausedBodiesById[bodyA.id] = {
+        body: bodyA,
+        lastCollideTime: now
+      };
+    }
   }
 
   updateWorldToLatestGamestate() {
@@ -317,7 +324,7 @@ class Main extends React.Component {
 
       this.updateWorldToLatestGamestate();
 
-      /* Server gamestates are in the pastd. Before updating the world and fast forwarding, we need to
+      /* Server gamestates are in the past. Before updating the world and fast forwarding, we need to
       remove any objects that have their correction paused
       (e.g. the player during moves, or things they have collided with recently)
       */
@@ -343,7 +350,7 @@ class Main extends React.Component {
       //Temporarily remove paused non-player bodies before fast-forwarding
       let tempRemovedBodies = [];
       _.each(this.pausedBodiesById, (pausedBody) => {
-        tempRemovedBodies.push(pausedBody);
+        tempRemovedBodies.push(pausedBody.body);
       });
       m.World.remove(this.engine.world, tempRemovedBodies);
 

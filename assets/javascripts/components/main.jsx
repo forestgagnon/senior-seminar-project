@@ -165,6 +165,7 @@ class Main extends React.Component {
 
     });
     e.collisionStart.forEach((pair) => {
+      console.log(pair);
       const { bodyA, bodyB } = pair;
       //Handle correction pausing
       this.handleCorrectionPausing(bodyA, bodyB, now);
@@ -225,9 +226,6 @@ class Main extends React.Component {
           else if (!this.pausePlayerCorrection || _.isUndefined(this.pausedBodiesById[body.id])) {
             m.Body.set(body, props);
             this.setLatencyCompensatedVelocity(body);
-          }
-          else {
-            console.log('body ' + body.id + ' is paused'); //XXX
           }
         }
         else {
@@ -315,8 +313,7 @@ class Main extends React.Component {
       //TODO: non-player pausing is currently exhibiting weird behavior
       let bodyIdsToUnpause = [];
       _.each(this.pausedBodiesById, (pausedBody, id) => {
-        if (NOW - pausedBody.lastCollideTime > this.state.latency*4) {
-          console.log('unpausing ' + id); //XXX
+        if (NOW - pausedBody.lastCollideTime > this.state.latency*8) { //FIXME currently broken, needs server lag compensation
           bodyIdsToUnpause.push(id);
         }
       });
@@ -333,19 +330,8 @@ class Main extends React.Component {
       }
       else {
         //Unpause everything else since player correction is not paused.
-        this.pausedBodiesById = {};
+        // this.pausedBodiesById = {};
       }
-
-      // //Unpause bodies that haven't collided with the player in awhile
-      // //TODO: non-player pausing is currently exhibiting weird behavior
-      // let bodyIdsToUnpause = [];
-      // _.each(this.pausedBodiesById, (pausedBody, id) => {
-      //   if (NOW - pausedBody.lastCollideTime > this.state.latency*4) {
-      //     console.log('unpausing ' + id); //XXX
-      //     bodyIdsToUnpause.push(id);
-      //   }
-      // });
-      // this.pausedBodiesById = _.omit(this.pausedBodiesById, bodyIdsToUnpause);
 
       //Temporarily remove paused non-player bodies before fast-forwarding
       let tempRemovedBodies = [];

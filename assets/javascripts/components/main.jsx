@@ -163,7 +163,6 @@ class Main extends React.Component {
 
     });
     e.collisionStart.forEach((pair) => {
-      console.log(pair);
       const { bodyA, bodyB } = pair;
       //Handle correction pausing
       this.handleCorrectionPausing(bodyA, bodyB, now);

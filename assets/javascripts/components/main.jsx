@@ -2,7 +2,6 @@ import socketConstants from 'shared/socketConstants';
 import physicsConfigModule from 'shared/physicsConfig';
 const physicsConfig = physicsConfigModule(m);
 import Gameloop from 'node-gameloop';
-import FastPriorityQueue from 'fastpriorityqueue';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
 
@@ -106,7 +105,6 @@ class Main extends React.Component {
     this.socket.on(socketConstants.S_MOVE_CONFIRMATION, (data) => {
       setTimeout(() => { //TODO: timeout is for latency simulation
         this.lastMoveConfirmation = Date.now();
-        this.updateQueue = new FastPriorityQueue(timestampComparator);
       }, this.state.latency);
     });
 

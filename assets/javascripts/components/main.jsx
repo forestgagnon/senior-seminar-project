@@ -99,13 +99,13 @@ class Main extends React.Component {
         updateNum: gameData.updateNum,
         lastClientTimestamp: lastClientTimestamp,
         timeReceived: Date.now()
-      }}, this.state.latency);
+      }}, this.state.lagSimulationMs);
     });
 
     this.socket.on(socketConstants.S_MOVE_CONFIRMATION, (data) => {
       setTimeout(() => { //TODO: timeout is for latency simulation
         this.lastMoveConfirmation = Date.now();
-      }, this.state.latency);
+      }, this.state.lagSimulationMs);
     });
 
     this.socket.emit(socketConstants.C_INITIALIZE);
@@ -295,7 +295,7 @@ class Main extends React.Component {
           directions: directions,
           clientTimestamp: NOW
         });
-      }, this.state.latency);
+      }, this.state.lagSimulationMs);
       this.timeOfLastMove = NOW;
     }
     else if (this.pausePlayerCorrection && this.timeOfLastMove !== null && NOW - this.timeOfLastMove > 4*this.state.latency) {

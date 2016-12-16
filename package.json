@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node gameServer.js",
-    "build": "webpack --config ./webpack.config.js"
+    "build": "webpack --config ./webpack.config.js",
+    "heroku-postbuild": "webpack --config ./webpack.config.js"
   },
   "repository": {
     "type": "git",

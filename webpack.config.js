@@ -9,7 +9,6 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'public'),
     filename: 'bundle.js',
-    publicPath: 'http://localhost:8080/public/',
   },
   resolve: {
     root: [path.resolve(__dirname)],

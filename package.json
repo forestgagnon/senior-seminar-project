@@ -5,7 +5,8 @@
   "main": "gameServer.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node gameServer.js"
+    "start": "node gameServer.js",
+    "build": "webpack --config ./webpack.config.js"
   },
   "repository": {
     "type": "git",

@@ -2,10 +2,10 @@
   "name": "senior-seminar-project",
   "version": "1.0.0",
   "description": "",
-  "main": "game-server.js",
+  "main": "gameServer.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node game-server.js"
+    "start": "node gameServer.js"
   },
   "repository": {
     "type": "git",

@@ -48,6 +48,7 @@ class Main extends React.Component {
     this.playerBody = null;
     this.keyMap = {};
     this.lastMoveConfirmation = 0;
+    this.timeLastPositionUpdateSent = 0;
     this.pausePlayerCorrection = false;
     this.lastCorrection = null; //TODO: unused for now
     this.lastPlayerCorrection = null;
@@ -70,6 +71,7 @@ class Main extends React.Component {
     this.handleCorrectionPausing = this.handleCorrectionPausing.bind(this);
     this.tickEngine = this.tickEngine.bind(this);
     this.setLatencyCompensatedVelocity = this.setLatencyCompensatedVelocity.bind(this);
+    this.sendCollisionInfo = this.sendCollisionInfo.bind(this);
 
     m.Events.on(this.engine, "tick", this.handleCollisions);
   }
@@ -157,33 +159,43 @@ class Main extends React.Component {
   handleCollisions(e) {
     const now = Date.now();
     e.collisionActive.forEach((pair) => {
-      const { bodyA, bodyB } = pair;
       //Handle correction pausing
-      this.handleCorrectionPausing(bodyA, bodyB, now);
+      this.handleCorrectionPausing(pair, now);
 
     });
     e.collisionStart.forEach((pair) => {
       const { bodyA, bodyB } = pair;
       //Handle correction pausing
-      this.handleCorrectionPausing(bodyA, bodyB, now);
+      this.handleCorrectionPausing(pair, now);
       //Handle boundary bounce collisions
       physicsConfig.boundaryBounceHandler(bodyA, bodyB);
     });
   }
 
-  handleCorrectionPausing(bodyA, bodyB, now) {
+  handleCorrectionPausing(pair, now) {
+    const { bodyA, bodyB } = pair;
     if (bodyA.id === this.playerBody.id && bodyB.label !== 'boundary') {
       this.pausedBodiesById[bodyB.id] = {
         body: bodyB,
         lastCollideTime: now
       };
+      // this.sendCollisionInfo(pair, now);
     }
     else if (bodyB.id === this.playerBody.id && bodyA.label !== 'boundary') {
       this.pausedBodiesById[bodyA.id] = {
         body: bodyA,
         lastCollideTime: now
       };
+      // this.sendCollisionInfo(pair, now);
     }
+  }
+
+  sendCollisionInfo(pair, timestamp) {
+    setTimeout(() => { //TODO: timeout is for latency simulation
+      this.socket.emit(socketConstants.C_COLLISION_EVENT, {
+
+      });
+    }, this.state.lagSimulationMs);
   }
 
   updateWorldToLatestGamestate() {
@@ -288,14 +300,21 @@ class Main extends React.Component {
       }
     }
 
+    // console.log(this.playerBody);
+
     if (directions.length > 0) {
       this.pausePlayerCorrection = true;
       setTimeout(() => { //TODO: timeout is for latency simulation
         this.socket.emit(socketConstants.C_MOVE, {
           directions: directions,
-          clientTimestamp: NOW
+          clientTimestamp: NOW,
+          playerBodyData: {
+            position: this.playerBody.position,
+            velocity: this.playerBody.velocity,
+          }
         });
       }, this.state.lagSimulationMs);
+      // console.log(this.playerBody);
       this.timeOfLastMove = NOW;
     }
     else if (this.pausePlayerCorrection && this.timeOfLastMove !== null && NOW - this.timeOfLastMove > 4*this.state.latency) {
@@ -340,7 +359,7 @@ class Main extends React.Component {
       //Fast forward the engine by the number of ticks corresponding to double the current latency
       let iterations = Math.ceil((2*this.state.latency) / this.engine.timing.delta);
       for (let i = 0; i < iterations; i++) {
-        this.tickEngine();
+        // this.tickEngine();
       }
 
       //Restore paused bodies back to the world

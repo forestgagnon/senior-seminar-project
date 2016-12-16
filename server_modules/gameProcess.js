@@ -1,5 +1,6 @@
 const path = require('path'),
   _ = require('underscore'),
+  Victor = require('victor'),
   procConstants = require(path.resolve(__dirname, 'procConstants.js')),
   m = require(path.resolve(__dirname, '../shared/matter-edge-build.js')),
   physicsConfig = require(path.resolve(__dirname, '../shared/physicsConfig.js'))(m),
@@ -64,7 +65,8 @@ process.on('message', (message) => {
         body: modelGenerator.createPlayerModel(message.data.socketId),
         movementDirections: [],
         lastClientTimestamp: null,
-        latency: 0
+        latency: 0,
+        latestClientBodyData: null
       };
 
       //Position the player //TODO: add spawnpoints
@@ -86,6 +88,7 @@ process.on('message', (message) => {
       if (player) {
         player.movementDirections = player.movementDirections.concat(message.data.directions);
         player.lastClientTimestamp = message.data.clientTimestamp;
+        player.latestClientBodyData = message.data.clientPlayerBodyData;
       }
       break;
 
@@ -116,6 +119,14 @@ function pauseGameLoop() {
   gameloop.clearGameLoop(gameLoopId);
 }
 
+function updatePlayerBody(playerBody, bodyData) {
+  let latestClientPositionVictor = new Victor(bodyData.position.x, bodyData.position.y);
+  let distance = latestClientPositionVictor.distance(new Victor(playerBody.position.x, playerBody.position.y));
+  console.log(distance);
+  m.Body.setPosition(playerBody, bodyData.position);
+  m.Body.setVelocity(playerBody, bodyData.velocity);
+}
+
 function gameLoop(delta) {
   let playersThatMoved = [];
 
@@ -123,7 +134,10 @@ function gameLoop(delta) {
   _.each(allPlayersBySocketId, (player) => {
 
     if (player.movementDirections.length > 0) {
-      playerMoved = true;
+      playerMoved = true
+      if (player.latestClientPosition !== null) {
+        updatePlayerBody(player.body, player.latestClientBodyData);
+      }
       playersThatMoved.push({ id: player.id, lastClientTimestamp: player.lastClientTimestamp });
     }
     player.movementDirections.forEach((direction) => {

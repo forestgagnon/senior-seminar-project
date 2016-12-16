@@ -66,7 +66,8 @@ io.on('connection', (socket) => {
       data: {
         socketId: socket.id,
         directions: data.directions,
-        clientTimestamp: data.clientTimestamp
+        clientTimestamp: data.clientTimestamp,
+        clientPlayerBodyData: data.playerBodyData,
       }
     });
   });

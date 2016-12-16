@@ -26,7 +26,7 @@ gameProc.on('message', (procMsg) => {
           lastClientTimestamp: procMsg.data.playerDataBySocketId[socket.id] ? procMsg.data.playerDataBySocketId[socket.id].lastClientTimestamp : null
         });
       });
-      console.log('SENT UPDATE ' + procMsg.data.gameData.timestamp);
+      // console.log('SENT UPDATE ' + procMsg.data.gameData.timestamp);
       break;
 
     case procConstants.R_PLAYERS_THAT_MOVED:

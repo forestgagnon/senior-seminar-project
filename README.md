@@ -1,9 +1,9 @@
 # Senior Seminar Project - Forest Gagnon
 
-A realtime physics-based online game with latency compensation
+A real-time 2D physics game with client-side prediction.
 
 ### Steps to run locally:
   1. `npm install`
-  2. `webpack --watch`
-  3. `node gameServer.js`
-  4. Navigate to `localhost:3000`
+  2. `webpack`
+  3. `npm start`
+  4. Navigate to `localhost:3000` (open multiple windows for multiple players)

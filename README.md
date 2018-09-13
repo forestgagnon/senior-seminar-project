@@ -1,5 +1,7 @@
 # Senior Seminar Project - Forest Gagnon
 
+## This was a hacky college project, expect no craftsmanship here.
+
 A real-time 2D physics game with client-side prediction.
 
 ### Steps to run locally:

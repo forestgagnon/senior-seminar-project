@@ -4,6 +4,7 @@ const physicsConfig = physicsConfigModule(m);
 import Gameloop from 'node-gameloop';
 import MatterWorldWrap from 'shared/matter-world-wrap';
 import MiscUtils from 'shared/miscUtils';
+process.hrtime = require('browser-process-hrtime');
 
 const ENGINE_PARAMS = physicsConfig.engineParams;
 const MOVEMENT_FORCES = physicsConfig.movementForces;
